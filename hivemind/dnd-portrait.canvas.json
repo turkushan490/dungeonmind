@@ -1,0 +1,59 @@
+{
+  "id": "dnd-portrait",
+  "name": "DungeonMind: portraits",
+  "description": "Four portrait options for a character (DungeonMind).",
+  "shared": false,
+  "nodes": [
+    {
+      "id": "in",
+      "type": "input",
+      "label": "input",
+      "position": {
+        "x": 0,
+        "y": 40
+      },
+      "config": {}
+    },
+    {
+      "id": "prompt",
+      "type": "llm",
+      "label": "prompt",
+      "position": {
+        "x": 250,
+        "y": 120
+      },
+      "config": {
+        "temperature": 0.7,
+        "system": "You write prompts for an image model. Reply with one paragraph only, no preamble.",
+        "prompt": "Write an image prompt for a fantasy character portrait: head and shoulders, dramatic painterly lighting, dark fantasy, detailed face, no text. Style: {{vars.style}}.\nCharacter: {{question}}"
+      }
+    },
+    {
+      "id": "portraits",
+      "type": "image",
+      "label": "portraits",
+      "position": {
+        "x": 500,
+        "y": 180
+      },
+      "config": {
+        "batch": 4,
+        "width": 768,
+        "height": 1024,
+        "negative": "text, watermark, blurry, deformed hands, extra limbs"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "in-prompt",
+      "source": "in",
+      "target": "prompt"
+    },
+    {
+      "id": "prompt-portraits",
+      "source": "prompt",
+      "target": "portraits"
+    }
+  ]
+}

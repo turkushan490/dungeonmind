@@ -1,0 +1,42 @@
+{
+  "id": "dnd-setup",
+  "name": "DungeonMind: adventure setup",
+  "description": "Pitches and a dynamic setup form for a new adventure (DungeonMind).",
+  "shared": false,
+  "nodes": [
+    {
+      "id": "in",
+      "type": "input",
+      "label": "input",
+      "position": {
+        "x": 0,
+        "y": 40
+      },
+      "config": {}
+    },
+    {
+      "id": "pitch",
+      "type": "llm",
+      "label": "pitch",
+      "position": {
+        "x": 300,
+        "y": 100
+      },
+      "config": {
+        "json": true,
+        "numCtx": 16384,
+        "temperature": 0.9,
+        "jsonSchema": "stage \"pitches\": {\"pitches\":[{\"title\":string,\"hook\":string,\"tone\":string,\"themes\":[string]}]} (exactly 4)\nstage \"form\": {\"title\":string,\"summary\":string,\"fields\":[{\"id\":string,\"label\":string,\"type\":\"select\"|\"slider\"|\"text\"|\"multi\",\"options\"?:[string],\"min\"?:number,\"max\"?:number,\"default\":string|number|[string],\"help\"?:string}]} (5-9 fields)",
+        "system": "You are the Dungeon Master preparing a new tabletop adventure for {{vars.ruleset}} (D&D 5e). Tone: dark, mature, grounded fantasy. Vivid but concise. Second person for the party (\"you\"), third person for NPCs. Players may write with typos; understand what they mean. Everything you write is in English.\nReply with JSON only.",
+        "prompt": "Stage: {{vars.stage}}\nStart level {{vars.startLevel}}, end level {{vars.endLevel}}, up to {{vars.maxPlayers}} players.\nHost's wishes: {{question}}\nChosen pitch (stage \"form\" only): {{vars.pitch}}\n\nIf the stage is \"pitches\": suggest 4 distinct adventure pitches that fit the wishes and the level range. Each has a title, a two-sentence hook, a tone and themes.\nIf the stage is \"form\": design a setup form for THIS adventure: the questions the host should answer before play (e.g. the villain's nature, how deadly, the starting location, a faction, how much horror). Use select/multi with 3-6 options, slider with min/max, or short text. Every field has a sensible default."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "in-pitch",
+      "source": "in",
+      "target": "pitch"
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "id": "dnd-ask",
+  "name": "DungeonMind: ask the DM",
+  "description": "Out-of-turn questions to the DM; never moves the story (DungeonMind).",
+  "shared": false,
+  "nodes": [
+    {
+      "id": "in",
+      "type": "input",
+      "label": "input",
+      "position": {
+        "x": 0,
+        "y": 40
+      },
+      "config": {}
+    },
+    {
+      "id": "rules",
+      "type": "memory",
+      "label": "rules",
+      "position": {
+        "x": 250,
+        "y": 100
+      },
+      "config": {
+        "mode": "search",
+        "key": "rules:{{vars.ruleset}}",
+        "limit": 5
+      }
+    },
+    {
+      "id": "memory",
+      "type": "memory",
+      "label": "campaign memory",
+      "position": {
+        "x": 250,
+        "y": 120
+      },
+      "config": {
+        "mode": "search",
+        "key": "dnd:{{vars.tableId}}",
+        "limit": 5
+      }
+    },
+    {
+      "id": "answer",
+      "type": "llm",
+      "label": "answer",
+      "position": {
+        "x": 500,
+        "y": 120
+      },
+      "config": {
+        "numCtx": 32768,
+        "temperature": 0.4,
+        "system": "You are the Dungeon Master answering an out-of-turn question from {{vars.asker}}: a rules question, or what their character knows or notices. Tone: dark, mature, grounded fantasy. Vivid but concise. Second person for the party (\"you\"), third person for NPCs. Players may write with typos; understand what they mean. Everything you write is in English.\n- Answer briefly and accurately. Quote the rule when it's a rules question ({{vars.ruleset}}).\n- Never move the story forward, never resolve actions, never reveal secrets the character couldn't know.",
+        "prompt": "## Campaign file\n{{vars.campaign}}\n\n## Party state (authoritative)\n{{vars.party}}\n\n## Recent turns\n{{vars.recent}}\n\n## Question from {{vars.asker}}\n{{question}}\n\n## Rules and memory\n{{inputs}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "in-rules",
+      "source": "in",
+      "target": "rules"
+    },
+    {
+      "id": "in-memory",
+      "source": "in",
+      "target": "memory"
+    },
+    {
+      "id": "rules-answer",
+      "source": "rules",
+      "target": "answer"
+    },
+    {
+      "id": "memory-answer",
+      "source": "memory",
+      "target": "answer"
+    }
+  ]
+}

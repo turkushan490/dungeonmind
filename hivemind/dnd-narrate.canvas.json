@@ -1,0 +1,125 @@
+{
+  "id": "dnd-narrate",
+  "name": "DungeonMind: narrate",
+  "description": "Narration with the real dice results, then the state JSON (DungeonMind).",
+  "shared": false,
+  "nodes": [
+    {
+      "id": "in",
+      "type": "input",
+      "label": "input",
+      "position": {
+        "x": 0,
+        "y": 40
+      },
+      "config": {}
+    },
+    {
+      "id": "memory",
+      "type": "memory",
+      "label": "campaign memory",
+      "position": {
+        "x": 250,
+        "y": 120
+      },
+      "config": {
+        "mode": "search",
+        "key": "dnd:{{vars.tableId}}",
+        "query": "{{vars.actions}}",
+        "limit": 6
+      }
+    },
+    {
+      "id": "rules",
+      "type": "memory",
+      "label": "rules",
+      "position": {
+        "x": 250,
+        "y": 100
+      },
+      "config": {
+        "mode": "search",
+        "key": "rules:{{vars.ruleset}}",
+        "query": "{{vars.actions}}",
+        "limit": 4
+      }
+    },
+    {
+      "id": "narration",
+      "type": "llm",
+      "label": "narration",
+      "position": {
+        "x": 500,
+        "y": 180
+      },
+      "config": {
+        "numCtx": 32768,
+        "temperature": 0.85,
+        "system": "You are the Dungeon Master of an ongoing D&D 5e campaign ({{vars.ruleset}}). Tone: dark, mature, grounded fantasy. Vivid but concise. Second person for the party (\"you\"), third person for NPCs. Players may write with typos; understand what they mean. Everything you write is in English.\nTHE NUMBERS ARE THE SERVER'S. Never invent dice results, hit points, spell slots, gold or XP totals. Use only the results and party state you are given. If something needs a roll that wasn't made, don't resolve it.\n- Narrate what happens because of the players' actions, using exactly the dice results given (hits, misses, damage numbers, saves). You may mention numbers (\"the blade bites for 7 damage\") but never different ones.\n- NPCs act and speak. Put spoken lines in quotes and name the speaker, e.g. The hag hisses, \"Closer, little lamb.\"\n- Keep it to 2-5 short paragraphs. End at a moment where the players must choose.\n- Mode \"opening\": write the opening scene of the adventure from the campaign file and invite the players to introduce their characters.\n- Never decide for the players what their characters say or feel.",
+        "prompt": "Mode: {{vars.mode}}\n\n## Campaign file\n{{vars.campaign}}\n\n## Party state (authoritative)\n{{vars.party}}\n\n## Recent turns\n{{vars.recent}}\n\n## What the players declared\n{{vars.actions}}\n\n## Dice results (server-rolled, final)\n{{vars.results}}\n\n## Memory and rules\n{{inputs}}"
+      }
+    },
+    {
+      "id": "state",
+      "type": "llm",
+      "label": "state",
+      "position": {
+        "x": 750,
+        "y": 100
+      },
+      "config": {
+        "json": true,
+        "numCtx": 32768,
+        "temperature": 0.2,
+        "jsonSchema": "{\"deltas\":[{\"pc\":string,\"hp\"?:number,\"tempHp\"?:number,\"gold\"?:number,\"counters\"?:{[name:string]:number},\"addItems\"?:[string],\"removeItems\"?:[string],\"addConditions\"?:[{\"name\":string,\"rounds\"?:number,\"source\"?:string}],\"removeConditions\"?:[string],\"concentration\"?:string|null}],\n\"xp\":[{\"pc\":string,\"amount\":number,\"reason\":string}],\n\"npcs\":[{\"name\":string,\"hp\"?:number,\"maxHp\"?:number,\"ac\"?:number,\"dex\"?:number,\"status\"?:\"hostile\"|\"neutral\"|\"friendly\"|\"dead\"|\"fled\",\"voice\"?:string}],\n\"combat\":{\"start\"?:boolean,\"end\"?:boolean,\"enemies\"?:[string]}|null,\n\"zones\":[{\"name\":string,\"distances\":{[otherZone:string]:number}}],\n\"positions\":{[zone:string]:[string]},\n\"choices\":{[pc:string]:[string,string,string,string]},\n\"speakers\":[{\"name\":string,\"kind\":\"narrator\"|\"npc\"|\"monster\",\"gender\"?:\"male\"|\"female\"|\"neutral\",\"age\"?:\"child\"|\"young\"|\"adult\"|\"old\"}],\n\"image\":string|null,\n\"sceneEnd\":boolean,\n\"summary\":string}",
+        "system": "You turn the Dungeon Master's narration into the game state change, as JSON. THE NUMBERS ARE THE SERVER'S. Never invent dice results, hit points, spell slots, gold or XP totals. Use only the results and party state you are given. If something needs a roll that wasn't made, don't resolve it.\n- \"deltas\": only changes the narration and the dice results caused. Damage from the results is negative hp. Healing positive. Spent items/ammo/gold. Conditions applied or ended (\"rounds\" = how long, omit for until removed). Do NOT include spell slots or features spent by the declared actions: the server already spent those.\n- \"xp\": award XP for defeated foes, solved problems and milestones, only when earned in this turn.\n- \"npcs\": every NPC/monster that matters now, with its current hp/maxHp/ac when known (use the SRD stat block values for monsters), status changes included.\n- \"combat\": {\"start\":true,\"enemies\":[names]} when a fight begins, {\"end\":true} when it ends, else null.\n- \"zones\" + \"positions\": the named areas of the current scene with distances in feet between them, and who stands where (every PC and NPC present).\n- \"choices\": for EVERY player character exactly 4 short, distinct, actionable options that fit their class and situation (the player can always write their own).\n- \"speakers\": who speaks in the narration, in order, starting with the narrator.\n- \"image\": a one-sentence visual description of the scene for an illustration when the scene changes a lot, else null.\n- \"sceneEnd\": true when this scene is over (a rest, a journey, a chapter end).\n- \"summary\": one line of what happened.\nReply with JSON only.",
+        "prompt": "## Party state (authoritative)\n{{vars.party}}\n\n## Dice results\n{{vars.results}}\n\n## Corrections to make (if any)\n{{vars.fix}}\n\n## The narration\n{{inputs}}"
+      }
+    },
+    {
+      "id": "save",
+      "type": "memory",
+      "label": "save",
+      "position": {
+        "x": 750,
+        "y": 80
+      },
+      "config": {
+        "mode": "save",
+        "key": "dnd:{{vars.tableId}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "in-memory",
+      "source": "in",
+      "target": "memory"
+    },
+    {
+      "id": "in-rules",
+      "source": "in",
+      "target": "rules"
+    },
+    {
+      "id": "memory-narration",
+      "source": "memory",
+      "target": "narration"
+    },
+    {
+      "id": "rules-narration",
+      "source": "rules",
+      "target": "narration"
+    },
+    {
+      "id": "narration-state",
+      "source": "narration",
+      "target": "state"
+    },
+    {
+      "id": "narration-save",
+      "source": "narration",
+      "target": "save"
+    }
+  ]
+}

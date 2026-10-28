@@ -2,6 +2,8 @@ import cookie from '@fastify/cookie';
 import staticFiles from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { existsSync } from 'node:fs';
+import { hivemindRoutes } from './api/hivemind.js';
+import { rulesRoutes } from './api/rules.js';
 import { authRoutes } from './auth/index.js';
 import { config } from './config.js';
 import { attachRealtime, presenceList } from './realtime.js';
@@ -34,6 +36,8 @@ export async function buildApp(opts: { logger?: boolean; web?: boolean; realtime
   app.get('/api/presence', { preHandler: requireUser }, async () => presenceList());
 
   authRoutes(app);
+  rulesRoutes(app);
+  hivemindRoutes(app);
 
   if (opts.realtime !== false) attachRealtime(app);
 

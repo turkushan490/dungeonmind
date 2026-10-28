@@ -12,7 +12,7 @@ RUN npm run typecheck && npm test && npm run build
 # ---- runtime (CPU only) ----
 FROM node:24-slim
 WORKDIR /app
-ENV NODE_ENV=production PORT=4830 DATA_DIR=/data WEB_DIR=/app/web RULES_DIR=/app/server/data AUTH_MODE=builtin
+ENV NODE_ENV=production PORT=4830 DATA_DIR=/data WEB_DIR=/app/web RULES_DIR=/app/server/data CANVAS_DIR=/app/hivemind AUTH_MODE=builtin
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
 COPY server/package.json server/
@@ -21,6 +21,7 @@ RUN npm ci --omit=dev -w server && npm cache clean --force
 COPY --from=build /app/server/dist ./server/dist
 COPY --from=build /app/web/dist ./web
 COPY server/data ./server/data
+COPY hivemind ./hivemind
 ARG APP_VERSION=dev
 ENV APP_VERSION=$APP_VERSION
 VOLUME /data

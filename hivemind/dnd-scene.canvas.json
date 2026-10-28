@@ -1,0 +1,41 @@
+{
+  "id": "dnd-scene",
+  "name": "DungeonMind: scene image",
+  "description": "One illustration of the current scene (DungeonMind).",
+  "shared": false,
+  "nodes": [
+    {
+      "id": "in",
+      "type": "input",
+      "label": "input",
+      "position": {
+        "x": 0,
+        "y": 40
+      },
+      "config": {}
+    },
+    {
+      "id": "scene",
+      "type": "image",
+      "label": "scene",
+      "position": {
+        "x": 300,
+        "y": 100
+      },
+      "config": {
+        "batch": 1,
+        "width": 1216,
+        "height": 704,
+        "prompt": "Dark fantasy illustration, cinematic, painterly, moody light, no text: {{question}}",
+        "negative": "text, watermark, blurry"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "in-scene",
+      "source": "in",
+      "target": "scene"
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "id": "dnd-adjudicate",
+  "name": "DungeonMind: adjudicate",
+  "description": "Which rolls and resources the players' actions need (DungeonMind). Never rolls itself.",
+  "shared": false,
+  "nodes": [
+    {
+      "id": "in",
+      "type": "input",
+      "label": "input",
+      "position": {
+        "x": 0,
+        "y": 40
+      },
+      "config": {}
+    },
+    {
+      "id": "rules",
+      "type": "memory",
+      "label": "rules",
+      "position": {
+        "x": 250,
+        "y": 100
+      },
+      "config": {
+        "mode": "search",
+        "key": "rules:{{vars.ruleset}}",
+        "query": "{{vars.actions}}",
+        "limit": 6
+      }
+    },
+    {
+      "id": "rolls",
+      "type": "llm",
+      "label": "rolls",
+      "position": {
+        "x": 500,
+        "y": 100
+      },
+      "config": {
+        "json": true,
+        "numCtx": 16384,
+        "temperature": 0.2,
+        "jsonSchema": "{\"rolls\":[{\"id\":string,\"actor\":string,\"kind\":\"attack\"|\"save\"|\"check\"|\"damage\"|\"heal\",\"ability\"?:\"str\"|\"dex\"|\"con\"|\"int\"|\"wis\"|\"cha\",\"skill\"?:string,\"dc\"?:number,\"target\"?:string,\"targetAc\"?:number,\"adv\"?:\"adv\"|\"dis\"|\"none\",\"dice\"?:string,\"bonus\"?:number,\"damageType\"?:string,\"weapon\"?:string,\"spell\"?:string,\"onHit\"?:string,\"onFail\"?:string,\"reason\":string}],\n\"resources\":[{\"pc\":string,\"name\":string,\"amount\":number}],\n\"refused\":[{\"pc\":string,\"reason\":string}],\n\"notes\"?:string}",
+        "system": "You are the rules adjudicator of a D&D 5e game ({{vars.ruleset}}). You decide which dice must be rolled to resolve the players' declared actions, and which limited resources each action spends. THE NUMBERS ARE THE SERVER'S. Never invent dice results, hit points, spell slots, gold or XP totals. Use only the results and party state you are given. If something needs a roll that wasn't made, don't resolve it.\nRules:\n- One entry per roll. \"actor\" is the exact name of who rolls (a player character or an NPC/monster).\n- Attacks: kind \"attack\" with \"target\" and \"targetAc\" (the NPC's AC from the party state/campaign; guess sensibly if unknown). Follow with a \"damage\" roll whose \"onHit\" is the attack's id.\n- Saving throws forced by a PC's spell: kind \"save\", actor = the target, \"ability\", \"dc\" = the caster's spell save DC from the party state. Damage on a failed save: \"onFail\" = the save's id.\n- Skill checks: kind \"check\" with \"skill\" (e.g. \"stealth\") or \"ability\", and a \"dc\".\n- For player characters NEVER give \"bonus\": the server computes modifiers from the sheet. For NPCs give \"bonus\".\n- \"dice\" for damage/heal like \"2d6+3\" or \"8d6\". Use the weapon or spell's real dice.\n- \"resources\": every limited thing the action spends: \"Spell slot L1\"..\"Spell slot L9\", class features (\"Channel Divinity\", \"Rage\", \"Bardic Inspiration\", \"Ki\", \"Action Surge\", \"Second Wind\", \"Lay on Hands\", \"Sorcery Points\", \"Wild Shape\"), racial traits, item charges, ammunition (\"Arrows\"). Cantrips spend nothing. Use the counter names from the party state when they exist.\n- If an action is impossible by the rules (e.g. a spell the character doesn't have, a feature at 0 uses, an action already used), put it in \"refused\" with a short reason the player sees.\n- Pure roleplay or movement without risk needs no roll. Reply with JSON only.",
+        "prompt": "## Campaign file\n{{vars.campaign}}\n\n## Party state (authoritative)\n{{vars.party}}\n\n## Recent turns\n{{vars.recent}}\n\n## Combat (initiative order, null when not in combat)\n{{vars.combat}}\n\n## Declared actions (in this order)\n{{vars.actions}}\n\n## Relevant rules\n{{inputs}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "in-rules",
+      "source": "in",
+      "target": "rules"
+    },
+    {
+      "id": "rules-rolls",
+      "source": "rules",
+      "target": "rolls"
+    }
+  ]
+}

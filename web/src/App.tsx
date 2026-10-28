@@ -6,11 +6,13 @@ import { MeContext } from './me';
 import { AgeGate } from './pages/AgeGate';
 import { Lobby } from './pages/Lobby';
 import { Login } from './pages/Login';
+import { SettingsPage } from './pages/Settings';
 import { match, navigate, usePath } from './router';
 import { closeSocket, getSocket } from './socket';
 
 const NAV: [string, string][] = [
   ['/', 'Lobby'],
+  ['/settings', 'Settings'],
 ];
 
 export function App() {
@@ -93,6 +95,7 @@ export function App() {
           </header>
         )}
         {path === '/' && <Lobby />}
+        {path === '/settings' && <SettingsPage />}
       </div>
       <Toasts />
     </MeContext.Provider>

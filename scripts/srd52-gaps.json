@@ -1,0 +1,150 @@
+{
+ "source": "System Reference Document 5.2 (Wizards of the Coast, CC-BY-4.0), summarized for DungeonMind because the 5e-database has no 2024 rule sections yet.",
+ "rules": [
+  {
+   "id": "d20-tests",
+   "name": "D20 Tests",
+   "desc": "Ability checks, saving throws and attack rolls are D20 Tests: roll a d20, add the relevant ability modifier, add your Proficiency Bonus if proficient, and compare with a target number (a DC or an Armor Class). Equal or higher succeeds."
+  },
+  {
+   "id": "advantage-disadvantage",
+   "name": "Advantage and Disadvantage",
+   "desc": "With Advantage roll two d20s and use the higher; with Disadvantage use the lower. Several sources of either don't stack. If you have both, they cancel out and you roll one d20. Heroic Inspiration lets you reroll any one die immediately; you must use the new roll."
+  },
+  {
+   "id": "difficulty-class",
+   "name": "Difficulty Class",
+   "desc": "Typical DCs: Very easy 5, Easy 10, Medium 15, Hard 20, Very hard 25, Nearly impossible 30. A creature's save DC for its effects is 8 + the ability modifier + Proficiency Bonus."
+  },
+  {
+   "id": "proficiency-bonus",
+   "name": "Proficiency Bonus",
+   "desc": "+2 at levels 1-4, +3 at 5-8, +4 at 9-12, +5 at 13-16, +6 at 17-20. It is added once to a roll even if you're proficient twice; Expertise doubles it for that skill."
+  },
+  {
+   "id": "ability-checks",
+   "name": "Ability Checks and Skills",
+   "desc": "Skills: Strength (Athletics); Dexterity (Acrobatics, Sleight of Hand, Stealth); Intelligence (Arcana, History, Investigation, Nature, Religion); Wisdom (Animal Handling, Insight, Medicine, Perception, Survival); Charisma (Deception, Intimidation, Performance, Persuasion). Passive Perception = 10 + Wisdom (Perception) modifier; +5 with Advantage, -5 with Disadvantage. Contests (e.g. hiding vs searching) compare two checks."
+  },
+  {
+   "id": "saving-throws",
+   "name": "Saving Throws",
+   "desc": "A saving throw resists a spell, trap, poison or other danger: d20 + ability modifier + Proficiency Bonus if proficient in that save, against the effect's DC."
+  },
+  {
+   "id": "attack-rolls",
+   "name": "Attack Rolls",
+   "desc": "Melee and ranged weapon attacks add Strength or Dexterity (Finesse weapons: either; ranged: Dexterity) plus Proficiency Bonus if proficient with the weapon. Spell attacks add the spellcasting modifier + Proficiency Bonus. A natural 20 always hits and is a Critical Hit; a natural 1 always misses. Ranged attacks at long range or with a hostile creature within 5 feet have Disadvantage. Unseen attackers have Advantage; attacking a target you can't see has Disadvantage."
+  },
+  {
+   "id": "critical-hits",
+   "name": "Critical Hits",
+   "desc": "On a Critical Hit, roll the attack's damage dice twice and add them together, then add modifiers once."
+  },
+  {
+   "id": "damage-healing",
+   "name": "Damage and Healing",
+   "desc": "Hit Points drop by damage taken. Resistance halves damage of that type (round down); Vulnerability doubles it; Immunity negates it. Apply resistance and vulnerability after other modifiers. Healing can't raise Hit Points above the maximum. Temporary Hit Points absorb damage first, don't stack (keep the higher amount) and can't be healed."
+  },
+  {
+   "id": "zero-hit-points",
+   "name": "Dropping to 0 Hit Points",
+   "desc": "At 0 HP a character falls Unconscious and makes a Death Saving Throw at the start of each of its turns: d20, 10 or higher is a success. Three successes: Stable. Three failures: dead. A natural 20 regains 1 HP; a natural 1 counts as two failures. Taking damage at 0 HP is one failure (a Critical Hit, two). If damage reduces you to 0 HP and the remainder equals or exceeds your HP maximum, you die instantly. Any healing ends Unconscious from 0 HP. A DC 10 Wisdom (Medicine) check stabilizes a creature."
+  },
+  {
+   "id": "initiative",
+   "name": "Initiative",
+   "desc": "At the start of combat everyone rolls Initiative: a Dexterity check. The DM rolls once for each group of identical monsters. Turns go from highest to lowest; ties are settled by the DM (players decide among their own characters). A Surprised creature has Disadvantage on its Initiative roll."
+  },
+  {
+   "id": "combat-turn",
+   "name": "Your Turn in Combat",
+   "desc": "On your turn you can move up to your Speed and take one action. You may also take one Bonus Action if something gives you one, and interact with one object for free. You get one Reaction per round, regained at the start of your turn."
+  },
+  {
+   "id": "actions",
+   "name": "Actions",
+   "desc": "Attack (weapon or Unarmed Strike), Dash (extra movement equal to your Speed), Disengage (no Opportunity Attacks against you this turn), Dodge (attacks against you have Disadvantage, Dexterity saves with Advantage), Help (give an ally Advantage on a check or an attack), Hide (DC 15 Dexterity (Stealth) check while Heavily Obscured or behind cover; on success you have the Invisible condition), Influence (Charisma or Wisdom check to change a creature's attitude), Magic (cast a spell, use a magic item or a magical feature), Ready (prepare a reaction to a trigger), Search (Wisdom check: Insight, Medicine, Perception or Survival), Study (Intelligence check: Arcana, History, Investigation, Nature or Religion), Utilize (use a nonmagical object)."
+  },
+  {
+   "id": "movement",
+   "name": "Movement and Position",
+   "desc": "Difficult Terrain costs 1 extra foot per foot moved. Standing up from Prone costs half your Speed; while Prone you can only crawl. You can move through an ally's space; a hostile creature's space only if it is two sizes larger or smaller (it counts as Difficult Terrain). Jumping, climbing and swimming without a special Speed cost extra movement."
+  },
+  {
+   "id": "opportunity-attacks",
+   "name": "Opportunity Attacks",
+   "desc": "When a hostile creature you can see leaves your reach, you can use your Reaction to make one melee attack against it. Teleporting or being moved without using movement/action/reaction doesn't provoke one."
+  },
+  {
+   "id": "cover",
+   "name": "Cover",
+   "desc": "Half Cover: +2 to AC and Dexterity saves. Three-Quarters Cover: +5. Total Cover: can't be targeted directly."
+  },
+  {
+   "id": "grapple-shove",
+   "name": "Unarmed Strike: Grapple and Shove",
+   "desc": "An Unarmed Strike deals 1 + Strength modifier bludgeoning damage, or instead grapples or shoves. The target makes a Strength or Dexterity saving throw (its choice) against DC 8 + your Strength modifier + Proficiency Bonus. Grapple: on a failure it has the Grappled condition (you need a free hand; the target must be no more than one size larger). Shove: on a failure you push it 5 feet away or knock it Prone. A Grappled creature can use its action to make the save again to escape."
+  },
+  {
+   "id": "two-weapon-fighting",
+   "name": "Two-Weapon Fighting",
+   "desc": "When you attack with a Light weapon, you can make one extra attack as a Bonus Action with a different Light weapon; don't add your ability modifier to its damage unless it's negative."
+  },
+  {
+   "id": "spellcasting",
+   "name": "Spellcasting",
+   "desc": "Casting a spell of level 1+ expends a spell slot of that level or higher. You can expend only one spell slot per turn. Cantrips use no slot. Spell save DC = 8 + spellcasting modifier + Proficiency Bonus; spell attack modifier = spellcasting modifier + Proficiency Bonus. Rituals can be cast without a slot if they have the Ritual tag (10 extra minutes). Components: Verbal, Somatic, Material."
+  },
+  {
+   "id": "concentration",
+   "name": "Concentration",
+   "desc": "Some spells require Concentration. You can concentrate on one at a time; starting another ends the first. Taking damage forces a Constitution saving throw, DC 10 or half the damage taken (round down), whichever is higher, up to DC 30; on a failure the spell ends. Concentration also ends if you have the Incapacitated condition or die."
+  },
+  {
+   "id": "resting",
+   "name": "Short and Long Rests",
+   "desc": "Short Rest: at least 1 hour; you can spend Hit Dice, each roll + Constitution modifier is HP regained. Long Rest: at least 8 hours, at most once per 24 hours; you regain all lost Hit Points and all spent Hit Dice, and your Exhaustion level drops by 1. Combat, casting or 1 hour of walking interrupts a Long Rest; an interrupted rest gives no benefit unless at least 1 hour passed (then it counts as a Short Rest). Many features recharge on a Short or Long Rest."
+  },
+  {
+   "id": "exhaustion",
+   "name": "Exhaustion",
+   "desc": "Exhaustion is cumulative (levels 1-6). Each level gives -2 to every D20 Test and -5 feet of Speed. At level 6 you die. A Long Rest removes 1 level."
+  },
+  {
+   "id": "hit-points-levels",
+   "name": "Hit Points and Leveling",
+   "desc": "Level 1 HP = Hit Die maximum + Constitution modifier. Each later level: roll the Hit Die or take the fixed value (half the die + 1), plus Constitution modifier (minimum 1). Hit Dice equal your level. XP thresholds: 2: 300, 3: 900, 4: 2,700, 5: 6,500, 6: 14,000, 7: 23,000, 8: 34,000, 9: 48,000, 10: 64,000, 11: 85,000, 12: 100,000, 13: 120,000, 14: 140,000, 15: 165,000, 16: 195,000, 17: 225,000, 18: 265,000, 19: 305,000, 20: 355,000."
+  },
+  {
+   "id": "vision-light",
+   "name": "Vision and Light",
+   "desc": "Lightly Obscured areas (dim light, fog) give Disadvantage on Wisdom (Perception) checks relying on sight. Heavily Obscured areas (darkness, dense fog) effectively give the Blinded condition. Darkvision treats darkness as dim light within its range."
+  },
+  {
+   "id": "falling",
+   "name": "Falling",
+   "desc": "A fall deals 1d6 bludgeoning damage per 10 feet fallen, to a maximum of 20d6, and you land Prone unless you avoid the damage."
+  },
+  {
+   "id": "suffocation",
+   "name": "Suffocation",
+   "desc": "You can hold your breath for 1 + Constitution modifier minutes (minimum 30 seconds). When you run out, you gain 1 Exhaustion level at the end of each of your turns until you can breathe."
+  },
+  {
+   "id": "travel",
+   "name": "Travel Pace",
+   "desc": "Fast: 4 miles/hour, Disadvantage on Perception and Survival; Normal: 3 miles/hour; Slow: 2 miles/hour, Advantage on Perception and Survival, can use Stealth."
+  },
+  {
+   "id": "carrying",
+   "name": "Carrying Capacity",
+   "desc": "You can carry Strength \u00d7 15 pounds (Medium). Small creatures carry the same; Large twice as much."
+  },
+  {
+   "id": "weapon-mastery",
+   "name": "Weapon Mastery",
+   "desc": "Classes with Weapon Mastery can use the mastery property of chosen weapons: Cleave (extra attack against an adjacent creature), Graze (Strength/Dexterity mod damage on a miss), Nick (Light extra attack as part of the Attack action), Push (push 10 feet), Sap (target has Disadvantage on its next attack), Slow (reduce Speed by 10 feet), Topple (Constitution save or Prone), Vex (Advantage on your next attack against that target)."
+  }
+ ]
+}

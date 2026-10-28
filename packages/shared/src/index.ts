@@ -21,3 +21,4 @@ export interface PresenceUser {
   /** "lobby", "game:<id>", "builder", … */
   where: string;
 }
+export * from './rules';

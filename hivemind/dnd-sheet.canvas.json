@@ -1,0 +1,61 @@
+{
+  "id": "dnd-sheet",
+  "name": "DungeonMind: character sheet",
+  "description": "A full, legal character sheet from a short description (DungeonMind validates it).",
+  "shared": false,
+  "nodes": [
+    {
+      "id": "in",
+      "type": "input",
+      "label": "input",
+      "position": {
+        "x": 0,
+        "y": 40
+      },
+      "config": {}
+    },
+    {
+      "id": "rules",
+      "type": "memory",
+      "label": "rules",
+      "position": {
+        "x": 250,
+        "y": 100
+      },
+      "config": {
+        "mode": "search",
+        "key": "rules:{{vars.ruleset}}",
+        "limit": 6
+      }
+    },
+    {
+      "id": "sheet",
+      "type": "llm",
+      "label": "sheet",
+      "position": {
+        "x": 500,
+        "y": 100
+      },
+      "config": {
+        "json": true,
+        "numCtx": 16384,
+        "temperature": 0.6,
+        "jsonSchema": "{\"name\":string,\"species\":string,\"subspecies\"?:string,\"class\":string,\"subclass\"?:string,\"background\":string,\"level\":number,\"abilities\":{\"str\":number,\"dex\":number,\"con\":number,\"int\":number,\"wis\":number,\"cha\":number},\"abilityMethod\":\"standard\"|\"pointbuy\",\"backgroundBonus\"?:{[ability:string]:number},\"skills\":[string],\"cantrips\":[string],\"spells\":[string],\"equipment\":[string],\"alignment\"?:string,\"appearance\":string,\"personality\":string,\"backstory\":string}",
+        "system": "You build legal D&D 5e ({{vars.ruleset}}) player characters at level {{vars.level}}. Use only the options listed. Base ability scores BEFORE species/background bonuses, using the standard array (15,14,13,12,10,8) or 27-point buy. Skills: the class's allowed choices (ids like \"stealth\"). Spells: ids from the class list, within the character's slot levels and counts. Reply with JSON only.",
+        "prompt": "Player's idea: {{question}}\n\n## Allowed options\n{{vars.options}}\n\n## Rules\n{{inputs}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "in-rules",
+      "source": "in",
+      "target": "rules"
+    },
+    {
+      "id": "rules-sheet",
+      "source": "rules",
+      "target": "sheet"
+    }
+  ]
+}

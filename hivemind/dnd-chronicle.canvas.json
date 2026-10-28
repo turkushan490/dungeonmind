@@ -1,0 +1,42 @@
+{
+  "id": "dnd-chronicle",
+  "name": "DungeonMind: chronicler",
+  "description": "Keeps the campaign file up to date with section patches (DungeonMind).",
+  "shared": false,
+  "nodes": [
+    {
+      "id": "in",
+      "type": "input",
+      "label": "input",
+      "position": {
+        "x": 0,
+        "y": 40
+      },
+      "config": {}
+    },
+    {
+      "id": "patches",
+      "type": "llm",
+      "label": "patches",
+      "position": {
+        "x": 300,
+        "y": 140
+      },
+      "config": {
+        "json": true,
+        "numCtx": 32768,
+        "temperature": 0.2,
+        "jsonSchema": "{\"patches\":[{\"section\":\"How to run\"|\"Story so far\"|\"Current scene\"|\"NPCs\"|\"Locations\"|\"Quests and open threads\"|\"Loot and items\"|\"Rulings made\"|\"Timeline\",\"op\":\"replace\"|\"append\",\"text\":string}]}",
+        "system": "You are the Chronicler. You keep the campaign file (markdown) accurate so the Dungeon Master never forgets anything. Return only the sections that change, as patches.\n- \"append\" adds lines to the end of a section; \"replace\" rewrites the whole section (use it for \"Current scene\", and for \"Story so far\" only in mode \"summary\").\n- Keep entries short, factual, in English. NPCs: name, role, attitude, voice (if given), alive/dead. Quests: open/closed. Timeline: one line per turn.\n- Never touch the party table: the server writes it.\n- Mode \"summary\": compress \"Story so far\" into a tight chapter summary (max ~250 words) that keeps every important fact, name and open thread.\nReply with JSON only.",
+        "prompt": "Mode: {{vars.mode}}\n\n## Current campaign file\n{{vars.campaign}}\n\n## This turn\n{{question}}\n\n## State JSON of this turn\n{{vars.state}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "in-patches",
+      "source": "in",
+      "target": "patches"
+    }
+  ]
+}
