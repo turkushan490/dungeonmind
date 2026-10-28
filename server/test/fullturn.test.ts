@@ -199,14 +199,21 @@ describe('the full turn loop', () => {
     await t.as(t.host, 'POST', `/api/games/${t.id}/actions`, { characterId: t.hostChar, choice: 1 });
     await t.as(t.pl, 'POST', `/api/games/${t.id}/actions`, { characterId: t.plChar, choice: 1 });
     await turn.settled(t.id);
+    // If the hag's dice dropped Esva to 0 HP, the turn waits for her death saving throw: roll it.
+    for (const r of (await game()).state.rolls.filter((x: any) => !x.result)) await t.as(t.pl, 'POST', `/api/games/${t.id}/rolls/${r.id}`, { mode: 'server' });
+    await turn.settled(t.id);
     let g = await game();
     expect(g.state.combat).toBeUndefined();
     for (const a of g.state.approvals) await t.as(t.host, 'POST', `/api/games/${t.id}/approvals/${a.id}`, { approve: false });
     expect((await t.as(t.host, 'POST', `/api/games/${t.id}/rest`, { kind: 'long' })).statusCode).toBe(200);
     g = await game();
     const e = g.characters.find((c: any) => c.name === 'Esva');
-    expect(e.hp).toBe(e.maxHp);
-    expect(e.counters.find((k: any) => k.name === 'Spell slot L1').current).toBe(2);
+    // A long rest heals the living; a character still at 0 HP (unstable) doesn't recover by resting.
+    if (!e.conditions.some((x: any) => x.name === 'unconscious' || x.name === 'dead')) expect(e.hp).toBe(e.maxHp);
+    // The dead don't rest; everyone else gets their slots back.
+    if (!e.conditions.some((x: any) => x.name === 'dead')) expect(e.counters.find((k: any) => k.name === 'Spell slot L1').current).toBe(2);
+    const turks = g.characters.find((c: any) => c.name === 'Turks');
+    expect(turks.hp).toBe(turks.maxHp);
     expect(e.counters.find((k: any) => k.name === 'Channel Divinity')).toBeUndefined(); // level 1 cleric: none yet
   });
 });
