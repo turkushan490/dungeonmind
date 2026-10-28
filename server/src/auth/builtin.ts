@@ -1,8 +1,8 @@
-import type { FastifyInstance, FastifyReply } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { config } from '../config.js';
 import { hashPassword, newId, randomToken, sha256, verifyPassword } from '../crypto.js';
 import { db } from '../db.js';
-import { registrationOpen, toUser, userCount, type User } from './index.js';
+import { registrationOpen, toUser, type User } from './index.js';
 
 export const SESSION_COOKIE = 'dm_session';
 const SESSION_DAYS = 30;
@@ -28,21 +28,61 @@ function noteFailure(ip: string) {
 
 export function validCredentials(username: unknown, password: unknown): string | undefined {
   if (typeof username !== 'string' || !/^[a-zA-Z0-9_.-]{3,32}$/.test(username)) return 'Username: 3-32 letters, digits, _ . -';
-  if (typeof password !== 'string' || password.length < 8) return 'Password must be at least 8 characters';
+  if (typeof password !== 'string' || password.length < 5 || !/[A-Z]/.test(password) || !/[^A-Za-z0-9]/.test(password))
+    return 'Password: at least 5 characters, with 1 capital and 1 symbol';
 }
 
-function startSession(reply: FastifyReply, userId: string) {
+/** HTTPS as the browser sees it (the proxy's X-Forwarded-Proto, trusted via trustProxy). */
+const isHttps = (req: FastifyRequest) => req.protocol === 'https';
+
+function startSession(req: FastifyRequest, reply: FastifyReply, userId: string) {
   const token = randomToken();
   db.prepare('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)').run(sha256(token), userId, Date.now() + SESSION_DAYS * 86400_000);
-  reply.setCookie(SESSION_COOKIE, token, { path: '/', httpOnly: true, sameSite: 'lax', secure: config.secureCookies, maxAge: SESSION_DAYS * 86400 });
+  reply.setCookie(SESSION_COOKIE, token, { path: '/', httpOnly: true, sameSite: 'lax', secure: isHttps(req), maxAge: SESSION_DAYS * 86400 });
+}
+
+async function checkPassword(req: FastifyRequest, reply: FastifyReply, username: string, password: unknown): Promise<string | undefined> {
+  if (tooMany(req.ip)) {
+    reply.code(429).send({ error: 'Too many attempts, try again later' });
+    return;
+  }
+  const row = db.prepare('SELECT id, pw_hash FROM users WHERE username = ?').get(username) as { id: string; pw_hash: string | null } | undefined;
+  if (!row?.pw_hash || !(await verifyPassword(String(password ?? ''), row.pw_hash))) {
+    noteFailure(req.ip);
+    reply.code(401).send({ error: 'Wrong username or password' });
+    return;
+  }
+  return row.id;
+}
+
+/** Both modes: log out, and the admin login. In portal mode its session wins over the portal headers until it is dropped. */
+export function sessionRoutes(app: FastifyInstance) {
+  app.post('/api/auth/admin-login', async (req, reply) => {
+    const { username, password } = (req.body ?? {}) as Record<string, unknown>;
+    if (!config.adminUsername) return reply.code(404).send({ error: 'No admin account set up (ADMIN_USERNAME / ADMIN_PASSWORD in Docker)' });
+    if (String(username ?? '').toLowerCase() !== config.adminUsername.toLowerCase()) {
+      noteFailure(req.ip);
+      return reply.code(401).send({ error: 'Wrong username or password' });
+    }
+    const id = await checkPassword(req, reply, config.adminUsername, password);
+    if (!id) return;
+    startSession(req, reply, id);
+    return { ok: true };
+  });
+
+  app.post('/api/auth/logout', async (req, reply) => {
+    const token = req.cookies[SESSION_COOKIE];
+    if (token) db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(sha256(token));
+    reply.clearCookie(SESSION_COOKIE, { path: '/' });
+    return { ok: true };
+  });
 }
 
 export function builtinRoutes(app: FastifyInstance) {
-  /** Registration; the very first account becomes the admin. The 18+ checkbox is part of the form. */
+  /** Registration; the 18+ checkbox is part of the form. Admins come from Docker (ADMIN_USERNAME) or Settings → Users. */
   app.post('/api/auth/register', async (req, reply) => {
     const { username, password, adult } = (req.body ?? {}) as Record<string, unknown>;
-    const first = userCount() === 0;
-    if (!first && !registrationOpen()) return reply.code(403).send({ error: 'Registration is closed. Ask the admin for an account.' });
+    if (!registrationOpen()) return reply.code(403).send({ error: 'Registration is closed. Ask the admin for an account.' });
     const bad = validCredentials(username, password);
     if (bad) return reply.code(400).send({ error: bad });
     if (adult !== true) return reply.code(400).send({ error: 'DungeonMind is for adults (18+) only' });
@@ -52,28 +92,17 @@ export function builtinRoutes(app: FastifyInstance) {
       id,
       username as string,
       await hashPassword(password as string),
-      first ? 'admin' : 'user',
+      'user',
     );
-    startSession(reply, id);
+    startSession(req, reply, id);
     return { ok: true };
   });
 
   app.post('/api/auth/login', async (req, reply) => {
-    if (tooMany(req.ip)) return reply.code(429).send({ error: 'Too many attempts, try again later' });
     const { username, password } = (req.body ?? {}) as Record<string, unknown>;
-    const row = db.prepare('SELECT id, pw_hash FROM users WHERE username = ?').get(String(username ?? '')) as { id: string; pw_hash: string | null } | undefined;
-    if (!row?.pw_hash || !(await verifyPassword(String(password ?? ''), row.pw_hash))) {
-      noteFailure(req.ip);
-      return reply.code(401).send({ error: 'Wrong username or password' });
-    }
-    startSession(reply, row.id);
-    return { ok: true };
-  });
-
-  app.post('/api/auth/logout', async (req, reply) => {
-    const token = req.cookies[SESSION_COOKIE];
-    if (token) db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(sha256(token));
-    reply.clearCookie(SESSION_COOKIE, { path: '/' });
+    const id = await checkPassword(req, reply, String(username ?? ''), password);
+    if (!id) return;
+    startSession(req, reply, id);
     return { ok: true };
   });
 

@@ -1,10 +1,10 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { Me } from '@dungeonmind/shared';
 import { config } from '../config.js';
-import { sha256 } from '../crypto.js';
+import { hashPassword, newId, sha256 } from '../crypto.js';
 import { db, getSetting, json, setSetting } from '../db.js';
-import { builtinRoutes, userBySession, SESSION_COOKIE } from './builtin.js';
-import { userFromHeaders } from './header.js';
+import { builtinRoutes, sessionRoutes, userBySession, validCredentials, SESSION_COOKIE } from './builtin.js';
+import { adminGroups, portalLogoutUrl, userFromHeaders } from './header.js';
 
 export interface User {
   id: string;
@@ -22,11 +22,31 @@ declare module 'fastify' {
 
 export interface AuthInput {
   headers: Record<string, string | string[] | undefined>;
-  ip: string;
   cookies: Record<string, string | undefined>;
 }
 
-export const userCount = () => (db.prepare('SELECT COUNT(*) AS n FROM users').get() as { n: number }).n;
+/**
+ * The admin account from Docker (ADMIN_USERNAME / ADMIN_PASSWORD), run on every start: created when missing,
+ * otherwise made admin with that password. A weak password only warns.
+ */
+export async function ensureAdmin(log: (msg: string) => void = console.warn): Promise<'created' | 'updated' | undefined> {
+  const { adminUsername: username, adminPassword: password } = config;
+  if (!username) return;
+  if (!password) {
+    log(`ADMIN_USERNAME is set but ADMIN_PASSWORD is empty: admin account "${username}" not set up`);
+    return;
+  }
+  const bad = validCredentials(username, password);
+  if (bad) log(`Admin account "${username}": ${bad}`);
+  const hash = await hashPassword(password);
+  const row = db.prepare('SELECT id FROM users WHERE username = ?').get(username) as { id: string } | undefined;
+  if (row) {
+    db.prepare("UPDATE users SET role = 'admin', pw_hash = ? WHERE id = ?").run(hash, row.id);
+    return 'updated';
+  }
+  db.prepare("INSERT INTO users (id, username, pw_hash, role) VALUES (?, ?, ?, 'admin')").run(newId(), username, hash);
+  return 'created';
+}
 
 export function userById(id: string): User | undefined {
   const r = db.prepare('SELECT id, username, role, adult_at FROM users WHERE id = ?').get(id) as Record<string, string> | undefined;
@@ -44,16 +64,21 @@ function userByApiToken(token: string): User | undefined {
   return toUser(row);
 }
 
-/** Works for HTTP requests and Socket.IO handshakes alike. */
+const sessionUser = (input: AuthInput) => {
+  const cookie = input.cookies[SESSION_COOKIE];
+  return cookie ? userBySession(cookie) : undefined;
+};
+
+/** Works for HTTP requests and Socket.IO handshakes alike. A session (in portal mode: the admin login) wins over the portal headers. */
 export function authenticateInput(input: AuthInput): User | undefined {
   const auth = input.headers.authorization;
   if (typeof auth === 'string' && auth.startsWith('Bearer dm_')) return userByApiToken(auth.slice(7).trim());
-  if (config.authMode === 'header') return userFromHeaders(input.headers, input.ip);
-  const cookie = input.cookies[SESSION_COOKIE];
-  return cookie ? userBySession(cookie) : undefined;
+  const session = sessionUser(input);
+  if (session || config.authMode === 'login') return session;
+  return userFromHeaders(input.headers);
 }
 
-export const authenticate = (req: FastifyRequest) => authenticateInput({ headers: req.headers, ip: req.ip, cookies: req.cookies });
+export const authenticate = (req: FastifyRequest) => authenticateInput({ headers: req.headers, cookies: req.cookies });
 
 /** Logged in AND answered the 18+ question. Every game route uses this. */
 export async function requireUser(req: FastifyRequest, reply: FastifyReply) {
@@ -80,17 +105,25 @@ export function authRoutes(app: FastifyInstance) {
   /** What the login page needs to know before anyone is logged in. */
   app.get('/api/auth/config', async () => ({
     mode: config.authMode,
-    needsSetup: config.authMode === 'builtin' && userCount() === 0,
     registration: registrationOpen(),
   }));
 
   app.get('/api/auth/me', async (req, reply): Promise<Me | void> => {
     const user = authenticate(req);
     if (!user) return reply.code(401).send({ error: 'Not logged in' });
-    return { id: user.id, username: user.username, role: user.role, adult: !!user.adultAt, authMode: config.authMode, logoutUrl: config.headerLogoutUrl || undefined, prefs: prefsOf(user.id) };
+    return {
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      adult: !!user.adultAt,
+      authMode: config.authMode,
+      adminSession: config.authMode === 'portal' && !req.headers.authorization && !!sessionUser(req) ? true : undefined,
+      logoutUrl: config.authMode === 'portal' ? portalLogoutUrl(req.headers) : undefined,
+      prefs: prefsOf(user.id),
+    };
   });
 
-  /** The 18+ gate: asked once, at registration (builtin) or at the first visit (header mode). */
+  /** The 18+ gate: asked once, at registration (login mode) or at the first visit (portal mode, the Docker admin). */
   app.post('/api/auth/adult', async (req, reply) => {
     const user = authenticate(req);
     if (!user) return reply.code(401).send({ error: 'Not logged in' });
@@ -111,15 +144,28 @@ export function authRoutes(app: FastifyInstance) {
 
   // ---- Admin: users and registration ----
   app.get('/api/admin/users', { preHandler: requireAdmin }, async () =>
-    (db.prepare('SELECT id, username, email, role, created_at, last_seen_at FROM users ORDER BY created_at').all() as Record<string, any>[]).map((u) => ({
+    (
+      db.prepare('SELECT id, username, email, role, created_at, last_seen_at, portal_groups, portal_admin, discord_roles FROM users ORDER BY created_at').all() as Record<string, any>[]
+    ).map((u) => ({
       id: u.id,
       username: u.username,
       email: u.email ?? undefined,
       role: u.role,
       createdAt: u.created_at,
       lastSeenAt: u.last_seen_at ?? undefined,
+      groups: json<string[] | undefined>(u.portal_groups, undefined),
+      portalAdmin: u.portal_admin === null ? undefined : !!u.portal_admin,
+      discordRoles: json<string[] | undefined>(u.discord_roles, undefined),
     })),
   );
+
+  /** Portal groups whose members get the admin role (with X-Auth-Groups). */
+  app.get('/api/admin/admin-groups', { preHandler: requireAdmin }, async () => ({ groups: adminGroups() }));
+  app.put('/api/admin/admin-groups', { preHandler: requireAdmin }, async (req) => {
+    const groups = String((req.body as { groups?: string })?.groups ?? '');
+    setSetting('admin_groups', groups.slice(0, 2000));
+    return { groups: adminGroups() };
+  });
 
   app.put('/api/admin/users/:id', { preHandler: requireAdmin }, async (req, reply) => {
     const { id } = req.params as { id: string };
@@ -142,5 +188,6 @@ export function authRoutes(app: FastifyInstance) {
     return { registration: registrationOpen() };
   });
 
-  if (config.authMode === 'builtin') builtinRoutes(app);
+  sessionRoutes(app);
+  if (config.authMode === 'login') builtinRoutes(app);
 }

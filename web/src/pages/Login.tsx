@@ -1,9 +1,51 @@
 import { useState, type FormEvent } from 'react';
 import { api } from '../api';
 
-/** Builtin accounts: log in, or register (the very first account is the admin). Registration includes the 18+ question. */
-export function Login({ setup, registration, onDone }: { setup: boolean; registration: boolean; onDone: () => void }) {
-  const [mode, setMode] = useState<'login' | 'register'>(setup ? 'register' : 'login');
+/** Login mode: log in, or register. Registration includes the 18+ question. Portal mode: only the Docker admin logs in here. */
+export function Login({ portal, registration, onDone }: { portal: boolean; registration: boolean; onDone: () => void }) {
+  if (portal)
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-4">
+        <Landing />
+        <div className="card w-full max-w-sm">
+          <AdminLoginForm onDone={onDone} />
+        </div>
+        <Attribution />
+      </div>
+    );
+  return <LoginForm registration={registration} onDone={onDone} />;
+}
+
+const PASSWORD_HINT = 'Password (5+ characters, 1 capital, 1 symbol)';
+
+/** Portal mode: the Docker admin account (ADMIN_USERNAME / ADMIN_PASSWORD). Its session wins over the portal until dropped. */
+export function AdminLoginForm({ onDone }: { onDone: () => void }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError('');
+    try {
+      await api('/api/auth/admin-login', { body: { username, password }, quiet: true });
+      onDone();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+  return (
+    <form onSubmit={submit} className="space-y-3">
+      <p className="text-sm text-slate-400">Log in with the admin account from Docker.</p>
+      <input className="input" placeholder="Admin username" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} />
+      <input className="input" type="password" placeholder="Password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+      {error && <p className="text-sm text-red-400">{error}</p>}
+      <button className="btn w-full">Log in as admin</button>
+    </form>
+  );
+}
+
+function LoginForm({ registration, onDone }: { registration: boolean; onDone: () => void }) {
+  const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [adult, setAdult] = useState(false);
@@ -25,13 +67,13 @@ export function Login({ setup, registration, onDone }: { setup: boolean; registr
       <Landing />
       <form onSubmit={submit} className="card w-full max-w-sm space-y-3">
         <p className="text-sm text-slate-400">
-          {setup ? 'First start: create the admin account.' : mode === 'login' ? 'Log in to play.' : 'Create your account.'}
+          {mode === 'login' ? 'Log in to play.' : 'Create your account.'}
         </p>
         <input className="input" placeholder="Username" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} />
         <input
           className="input"
           type="password"
-          placeholder="Password (8+ characters)"
+          placeholder={mode === 'register' ? PASSWORD_HINT : 'Password'}
           autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -44,9 +86,9 @@ export function Login({ setup, registration, onDone }: { setup: boolean; registr
         )}
         {error && <p className="text-sm text-red-400">{error}</p>}
         <button className="btn w-full" disabled={mode === 'register' && !adult}>
-          {mode === 'login' ? 'Log in' : setup ? 'Create admin' : 'Create account'}
+          {mode === 'login' ? 'Log in' : 'Create account'}
         </button>
-        {!setup && registration && (
+        {registration && (
           <button type="button" className="w-full text-center text-xs text-indigo-300 hover:underline" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>
             {mode === 'login' ? 'No account yet? Register' : 'Have an account? Log in'}
           </button>

@@ -18,25 +18,22 @@ Groups play together in the browser. The AI makes the adventure, narrates and of
 
 ```bash
 docker run -d --name dungeonmind -p 4830:4830 -v /path/to/appdata:/data \
-  -e AUTH_MODE=builtin \
+  -e AUTH_MODE=login -e ADMIN_USERNAME=admin -e 'ADMIN_PASSWORD=Change!me' \
   -e HIVEMIND_URL=http://192.168.1.10:4820 -e HIVEMIND_TOKEN=hm_xxx \
   ghcr.io/turkushan490/dungeonmind:latest
 ```
 
-Open `http://<host>:4830`, create the first account (it becomes the admin), then follow [docs/GUIDE.md](docs/GUIDE.md).
+Open `http://<host>:4830`, log in with the admin account from `ADMIN_USERNAME` / `ADMIN_PASSWORD`, then follow [docs/GUIDE.md](docs/GUIDE.md).
 
 ## Environment
 
 | Variable | Default | What |
 |---|---|---|
 | `PORT` | `4830` | Listen port |
-| `DATA_DIR` | `/data` | Database, images, audio cache, voice models |
-| `AUTH_MODE` | `builtin` | `builtin` (accounts in the app) or `header` (forward-auth sets `X-Auth-User` / `X-Auth-Email`) |
-| `AUTH_HEADER_TRUSTED_IPS` | – | header mode: only these proxy IPs may set the headers |
-| `AUTH_LOGOUT_URL` | – | header mode: where "Log out" goes |
+| `DATA_DIR` | `/data` | Database, images, audio cache, voice models (`secret.key` for the stored HiveMind token is generated here) |
+| `AUTH_MODE` | `login` | `login`: DungeonMind login page (username + password, friends register themselves). `portal`: auth portal (e.g. turkushan-auth) + admin login (people come in through the portal; the login page is only for the Docker admin). Old names `builtin` / `header` still work. |
+| `ADMIN_USERNAME`, `ADMIN_PASSWORD` | – | The admin account: created on every start if missing, otherwise made admin with this password |
 | `HIVEMIND_URL`, `HIVEMIND_TOKEN` | – | Seed the HiveMind connection (changeable in Settings) |
-| `SECURE_COOKIES` | `false` | `true` behind HTTPS |
-| `SECRET_KEY` | generated | Encrypts the stored HiveMind token |
 | `TTS_ENGINE` | `kokoro` | `kokoro`, `chatterbox` (`:full` image) or `off`; changeable in Settings |
 
 ## Development
@@ -57,7 +54,7 @@ server/data       SRD 5.1 + 5.2 rules data (CC-BY-4.0)
 web/src           Lobby · Characters · Adventure setup · Table · Settings · Guide
 hivemind/         the canvases DungeonMind installs into HiveMind
 templates/        Unraid Community Apps template
-docs/             PLAN.md · HIVEMIND_CHANGES.md · GUIDE.md
+docs/             PLAN.md · HIVEMIND_CHANGES.md · GUIDE.md · TURKUSHAN_AUTH_HEADERS.md
 ```
 
 ## License & attribution

@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FakeHiveMind } from './fake-hivemind.js';
-import { freshApp, register } from './helpers.js';
+import { freshApp, register, registerAdmin } from './helpers.js';
 
 let app: FastifyInstance;
 let admin: string;
@@ -12,7 +12,7 @@ const hm = new FakeHiveMind();
 beforeAll(async () => {
   await hm.start();
   app = await freshApp({ HIVEMIND_URL: hm.url, HIVEMIND_TOKEN: hm.token });
-  admin = await register(app, 'admin');
+  admin = await registerAdmin(app, 'admin');
 });
 afterAll(async () => {
   await app?.close();

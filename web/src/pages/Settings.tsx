@@ -285,17 +285,21 @@ function Tokens() {
 
 function Users() {
   const me = useMe();
-  const [list, setList] = useState<{ id: string; username: string; email?: string; role: string; lastSeenAt?: string }[]>([]);
+  const [list, setList] = useState<
+    { id: string; username: string; email?: string; role: string; lastSeenAt?: string; groups?: string[]; portalAdmin?: boolean; discordRoles?: string[] }[]
+  >([]);
   const [open, setOpen] = useState<boolean>();
+  const [groups, setGroups] = useState('');
   const load = () => api('/api/admin/users').then(setList);
   useEffect(() => {
     load();
     api('/api/auth/config').then((c) => setOpen(c.registration));
+    if (me.authMode === 'portal') api('/api/admin/admin-groups').then((g) => setGroups(g.groups.join(', ')));
   }, []);
   return (
     <section className="card space-y-3">
       <h2 className="rune-title">Users</h2>
-      {me.authMode === 'builtin' && (
+      {me.authMode === 'login' && (
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -306,11 +310,37 @@ function Users() {
           Anyone can register
         </label>
       )}
+      {me.authMode === 'portal' && (
+        <label className="block">
+          <span className="label">Admin groups</span>
+          <div className="flex gap-2">
+            <input className="input" placeholder="e.g. admins, dm" value={groups} onChange={(e) => setGroups(e.target.value)} />
+            <button
+              className="btn"
+              onClick={async () => (setGroups((await api('/api/admin/admin-groups', { method: 'PUT', body: { groups } })).groups.join(', ')), toast('Saved', 'info'))}
+            >
+              Save
+            </button>
+          </div>
+          <span className="text-xs text-slate-500">Comma separated portal groups (X-Auth-Groups). Members, and anyone the portal sends with X-Auth-Admin: true, get the admin role.</span>
+        </label>
+      )}
       <ul className="divide-y divide-[#30363d] text-sm">
         {list.map((u) => (
           <li key={u.id} className="flex flex-wrap items-center gap-2 py-2">
             <span className="font-medium">{u.username}</span>
             {u.email && <span className="text-xs text-slate-500">{u.email}</span>}
+            {u.portalAdmin && <span className="chip">portal admin</span>}
+            {u.groups?.map((g) => (
+              <span key={`g:${g}`} className="chip">
+                {g}
+              </span>
+            ))}
+            {u.discordRoles?.map((r) => (
+              <span key={`d:${r}`} className="chip border-indigo-800 text-indigo-300">
+                {r}
+              </span>
+            ))}
             <span className="ml-auto text-xs text-slate-500">{u.lastSeenAt ? `seen ${u.lastSeenAt}` : 'never seen'}</span>
             <select
               className="input w-auto py-1"

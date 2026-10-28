@@ -9,16 +9,16 @@ This is the setup and admin guide. The player guide lives inside the app (**Guid
 ### Unraid (Community Apps)
 1. Search for **DungeonMind** in Apps, or add the template URL `https://raw.githubusercontent.com/turkushan490/dungeonmind/main/templates/dungeonmind.xml`.
 2. Set **Data** (default `/mnt/user/appdata/dungeonmind`), **HiveMind URL** and **HiveMind token**.
-3. Pick the **Auth mode** (see below) and start the container.
+3. Pick the **Auth mode** (see below), set **Admin username** and **Admin password**, and start the container.
 
 ### Plain Docker
 See the README quick start. Everything lives in `/data`.
 
 ### Behind Nginx Proxy Manager (HTTPS)
-Add a proxy host for `dm.example.com` → `http://<unraid-ip>:4830` with **Websockets Support** on (the table uses Socket.IO), request a certificate, and set `SECURE_COOKIES=true` in the container. For `AUTH_MODE=header` put the forward-auth snippet from section 2 in the host's Advanced tab.
+Add a proxy host for `dm.example.com` → `http://<unraid-ip>:4830` with **Websockets Support** on (the table uses Socket.IO), and request a certificate. Cookies get the Secure flag by themselves when the proxy says the request came in over HTTPS (`X-Forwarded-Proto`). For `AUTH_MODE=portal` put the forward-auth snippet from section 2 in the host's Advanced tab.
 
 ### First start
-1. Open the WebUI. With `AUTH_MODE=builtin`, register: the first account is the admin. With `AUTH_MODE=header`, the first person through the proxy is the admin.
+1. Open the WebUI and log in with the admin account (`ADMIN_USERNAME` / `ADMIN_PASSWORD`). In portal mode, use the **Admin login** link in the top bar.
 2. **Settings → HiveMind:** URL + token, models, *Install / update canvases*, *Load SRD rules into HiveMind memory* (section 4).
 3. **Settings → Narrator voice:** pick the default engine and narrator (section 10). The first narration takes a moment while the voice model loads.
 4. Try the tutorial, then start a real adventure.
@@ -28,15 +28,21 @@ The image needs no GPU. The narrator (Kokoro) runs on the CPU; all LLM and image
 
 ## 2. Accounts (auth modes)
 
-- **`AUTH_MODE=builtin`** (default): username + password accounts inside DungeonMind. Passwords are hashed with argon2id (scrypt on Node < 24.7). The **first account becomes the admin**. The admin can close registration in Settings → Users.
-- **`AUTH_MODE=header`**: a forward-auth proxy logs people in and passes `X-Auth-User` and `X-Auth-Email` upstream. DungeonMind creates the account on the first visit (the first one is the admin). Set `AUTH_HEADER_TRUSTED_IPS` to your proxy's IP so nobody can fake the headers by reaching the port directly. In Nginx Proxy Manager, pass the headers from the auth subrequest:
+- **Admin account (both modes):** `ADMIN_USERNAME` + `ADMIN_PASSWORD` in Docker. On every start DungeonMind creates that account if it is missing; if it exists it is made admin and gets that password. A weak password only logs a warning. Nobody becomes admin just by being first. More admins: Settings → Users.
+- **Passwords:** at least 5 characters, with 1 capital and 1 symbol. Hashed with argon2id (scrypt on Node < 24.7).
+- **`AUTH_MODE=login`** (default): DungeonMind login page (username + password, friends register themselves). The admin can close registration in Settings → Users. (`builtin` is the old name and still works.)
+- **`AUTH_MODE=portal`**: auth portal (e.g. turkushan-auth) + admin login (people come in through the portal; the login page is only for the Docker admin). The portal logs people in and passes `X-Auth-User` and `X-Auth-Email`; DungeonMind creates the account on the first visit as a plain user. (`header` is the old name and still works.) Only expose DungeonMind through the proxy: the headers are always accepted.
+  - **Admin login:** a small link in the top bar opens a username/password dialog for the Docker admin. While that session exists it wins over the portal; the bar shows **Admin · Back to my account**, which drops it.
+  - **Log out:** if the portal sends `X-Auth-Logout` (its logout page), Log out goes there; otherwise it only drops the DungeonMind session.
+  - **Optional portal info:** `X-Auth-Groups` (comma separated), `X-Auth-Admin` (`true`/`false`) and `X-Auth-Discord-Roles` are stored on the user and shown in Settings → Users. Under **Admin groups** (Settings → Users) list the portal groups whose members get the admin role; `X-Auth-Admin: true` does the same. Without these headers nothing changes.
+  - In Nginx Proxy Manager, pass the headers from the auth subrequest (the full list for turkushan-auth is in [TURKUSHAN_AUTH_HEADERS.md](TURKUSHAN_AUTH_HEADERS.md)):
   ```nginx
   auth_request_set $auth_user $upstream_http_x_auth_user;
   auth_request_set $auth_email $upstream_http_x_auth_email;
   proxy_set_header X-Auth-User $auth_user;
   proxy_set_header X-Auth-Email $auth_email;
   ```
-- **18+:** every account answers the age question once (in the registration form, or on the first visit in header mode). Nothing else works until it's answered.
+- **18+:** every account answers the age question once (in the registration form, or on the first visit in portal mode and for the Docker admin). Nothing else works until it's answered.
 
 ## 3. Backups
 

@@ -145,6 +145,12 @@ const MIGRATIONS = [
   );
   CREATE INDEX lab_records_game ON lab_records(game_id, id);
   `,
+  // Auth portal info (X-Auth-Groups, X-Auth-Admin, X-Auth-Discord-Roles), shown in Settings → Users
+  `
+  ALTER TABLE users ADD COLUMN portal_groups TEXT;
+  ALTER TABLE users ADD COLUMN portal_admin INTEGER;
+  ALTER TABLE users ADD COLUMN discord_roles TEXT;
+  `,
 ];
 
 export const db = new DatabaseSync(join(config.dataDir, 'dungeonmind.db'));

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FakeHiveMind } from './fake-hivemind.js';
-import { CANVASES, freshApp, register, setupGame } from './helpers.js';
+import { CANVASES, freshApp, register, registerAdmin, setupGame } from './helpers.js';
 
 let app: FastifyInstance;
 const hm = new FakeHiveMind();
@@ -12,7 +12,7 @@ beforeAll(async () => {
   await hm.start();
   app = await freshApp({ HIVEMIND_URL: hm.url, HIVEMIND_TOKEN: hm.token });
   for (const id of CANVASES) hm.canvases.set(id, { id, nodes: [] });
-  cookie = await register(app, 'labadmin');
+  cookie = await registerAdmin(app, 'labadmin');
   token = (await app.inject({ method: 'POST', url: '/api/tokens', headers: { cookie }, payload: { name: 'HiveMind Lab' } })).json().token;
 });
 afterAll(async () => {

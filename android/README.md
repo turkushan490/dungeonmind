@@ -5,7 +5,7 @@ A small [Capacitor](https://capacitorjs.com) app around DungeonMind. It opens yo
 > This was meant to live in its own repository (`turkushan490/dungeonmind-android`), but the build session couldn't create repositories, so it lives here in `android/`. Moving it out later is a plain `git subtree split --prefix android`.
 
 - **First start:** enter your server address (e.g. `https://dm.example.com` or `http://192.168.1.20:4830`). It's checked against `/api/health` and remembered; recent servers are listed.
-- **Login:** on the server's own login page, so both `AUTH_MODE=builtin` and `AUTH_MODE=header` (your forward-auth portal) work. Settings → **Change server** goes back to the picker.
+- **Login:** on the server's own login page, so both `AUTH_MODE=login` and `AUTH_MODE=portal` (your forward-auth portal) work. Settings → **Change server** goes back to the picker.
 - **No push, no Firebase:** notices stay in the app (lobby invites, toasts).
 - Plain `http://` LAN servers work (cleartext is allowed for self-hosting).
 

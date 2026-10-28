@@ -1,12 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { freshApp, register } from './helpers.js';
+import { freshApp, register, registerAdmin } from './helpers.js';
 
 let app: FastifyInstance;
 let a: string, b: string;
 beforeAll(async () => {
   app = await freshApp();
-  a = await register(app, 'admin1');
+  a = await registerAdmin(app, 'admin1');
   b = await register(app, 'maker');
 });
 afterAll(() => app?.close());

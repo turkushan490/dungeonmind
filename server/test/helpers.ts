@@ -14,11 +14,19 @@ export async function freshApp(env: Record<string, string> = {}): Promise<Fastif
 }
 
 /** Registers (builtin mode) and returns the session cookie header. */
-export async function register(app: FastifyInstance, username: string, password = 'password123'): Promise<string> {
+export async function register(app: FastifyInstance, username: string, password = 'Password!23'): Promise<string> {
   const res = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username, password, adult: true } });
   if (res.statusCode !== 200) throw new Error(`register ${username}: ${res.body}`);
   const c = res.cookies.find((c) => c.name === 'dm_session')!;
   return `dm_session=${c.value}`;
+}
+
+/** Registers and makes the account an admin (admins come from ADMIN_USERNAME or Settings → Users). */
+export async function registerAdmin(app: FastifyInstance, username: string): Promise<string> {
+  const cookie = await register(app, username);
+  const { db } = await import('../src/db.js');
+  db.prepare("UPDATE users SET role = 'admin' WHERE username = ?").run(username);
+  return cookie;
 }
 
 export const CANVASES = ['dnd-setup', 'dnd-adjudicate', 'dnd-narrate', 'dnd-chronicle', 'dnd-ask', 'dnd-sheet', 'dnd-portrait', 'dnd-scene'];

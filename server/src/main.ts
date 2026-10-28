@@ -1,9 +1,11 @@
 import { buildApp } from './app.js';
+import { ensureAdmin } from './auth/index.js';
 import { config } from './config.js';
 import { recoverInterrupted } from './game/turn.js';
 
 process.on('unhandledRejection', (err) => console.error('Unhandled rejection:', err));
 
+await ensureAdmin();
 recoverInterrupted();
 const app = await buildApp();
 

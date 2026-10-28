@@ -1,7 +1,7 @@
 // Types shared by the server, the web UI and the Android app.
 
 export type Role = 'admin' | 'user';
-export type AuthMode = 'builtin' | 'header';
+export type AuthMode = 'login' | 'portal';
 
 export interface Me {
   id: string;
@@ -10,7 +10,9 @@ export interface Me {
   /** Answered the 18+ question. */
   adult: boolean;
   authMode: AuthMode;
-  /** Header mode: the proxy's logout page. */
+  /** Portal mode: logged in through "Admin login" (wins over the portal until dropped). */
+  adminSession?: boolean;
+  /** Portal mode: the portal's logout page, from its X-Auth-Logout header. */
   logoutUrl?: string;
   prefs: Record<string, unknown>;
 }

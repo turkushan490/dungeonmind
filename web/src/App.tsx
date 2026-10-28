@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import type { Me } from '@dungeonmind/shared';
+import type { AuthMode, Me } from '@dungeonmind/shared';
 import { api } from './api';
+import { Modal } from './components/Modal';
 import { Toasts } from './components/Toasts';
 import { MeContext } from './me';
 import { AgeGate } from './pages/AgeGate';
 import { Lobby } from './pages/Lobby';
-import { Login } from './pages/Login';
+import { AdminLoginForm, Login } from './pages/Login';
 import { SettingsPage } from './pages/Settings';
 import { HomebrewPage } from './pages/Homebrew';
 import { GuidePage } from './pages/Guide';
@@ -28,11 +29,12 @@ const NAV: [string, string][] = [
 
 export function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
-  const [auth, setAuth] = useState<{ needsSetup: boolean; registration: boolean }>({ needsSetup: false, registration: true });
+  const [auth, setAuth] = useState<{ mode: AuthMode; registration: boolean }>({ mode: 'login', registration: true });
+  const [adminLogin, setAdminLogin] = useState(false);
   const path = usePath();
 
   const load = async () => {
-    setAuth(await api('/api/auth/config', { quiet: true }).catch(() => ({ needsSetup: false, registration: true })));
+    setAuth(await api('/api/auth/config', { quiet: true }).catch(() => ({ mode: 'login' as AuthMode, registration: true })));
     setMe(await api<Me>('/api/auth/me', { quiet: true }).catch(() => null));
   };
   useEffect(() => {
@@ -62,7 +64,7 @@ export function App() {
   if (!me)
     return (
       <>
-        <Login setup={auth.needsSetup} registration={auth.registration} onDone={load} />
+        <Login portal={auth.mode === 'portal'} registration={auth.registration} onDone={load} />
         <Toasts />
       </>
     );
@@ -70,12 +72,20 @@ export function App() {
 
   const logout = async () => {
     closeSocket();
-    if (me.authMode === 'header') {
-      location.href = me.logoutUrl || '/';
+    await api('/api/auth/logout', { method: 'POST' });
+    if (me.authMode === 'portal' && me.logoutUrl) {
+      location.href = me.logoutUrl;
       return;
     }
-    await api('/api/auth/logout', { method: 'POST' });
     setMe(null);
+    load();
+  };
+
+  /** Portal mode: drop the admin session, the portal account takes over again. */
+  const backToAccount = async () => {
+    closeSocket();
+    await api('/api/auth/logout', { method: 'POST' });
+    location.reload();
   };
 
   const table = match('/table/:id', path);
@@ -108,6 +118,16 @@ export function App() {
               {me.username}
               {me.role === 'admin' && <span className="ml-1.5 rounded bg-[#21262d] px-1.5 py-0.5 text-xs">admin</span>}
             </span>
+            {me.authMode === 'portal' &&
+              (me.adminSession ? (
+                <button className="text-xs text-indigo-300 hover:underline" onClick={backToAccount}>
+                  Admin · Back to my account
+                </button>
+              ) : (
+                <button className="text-xs text-slate-500 hover:text-indigo-300 hover:underline" onClick={() => setAdminLogin(true)}>
+                  Admin login
+                </button>
+              ))}
             <button className="btn-ghost" onClick={logout}>
               Log out
             </button>
@@ -134,6 +154,11 @@ export function App() {
             </button>
           ))}
         </nav>
+      )}
+      {adminLogin && (
+        <Modal title="Admin login" onClose={() => setAdminLogin(false)}>
+          <AdminLoginForm onDone={() => location.reload()} />
+        </Modal>
       )}
       <Toasts />
     </MeContext.Provider>

@@ -37,7 +37,7 @@ export function attachRealtime(app: FastifyInstance) {
   io = new Server(app.server, { path: '/socket.io', serveClient: false, cors: { origin: false } });
   io.use((socket, next) => {
     const req = socket.request;
-    const user = authenticateInput({ headers: req.headers, ip: socket.handshake.address, cookies: parseCookies(req.headers.cookie) });
+    const user = authenticateInput({ headers: req.headers, cookies: parseCookies(req.headers.cookie) });
     if (!user) return next(new Error('Not logged in'));
     if (!user.adultAt) return next(new Error('Confirm that you are 18 or older first'));
     socket.data.user = user;

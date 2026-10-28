@@ -13,7 +13,7 @@ RUN npm run typecheck && npm test && npm run build
 FROM node:24-slim AS runtime
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates && rm -rf /var/lib/apt/lists/*
-ENV NODE_ENV=production PORT=4830 DATA_DIR=/data WEB_DIR=/app/web RULES_DIR=/app/server/data CANVAS_DIR=/app/hivemind AUTH_MODE=builtin KOKORO_MODEL_DIR=/app/models
+ENV NODE_ENV=production PORT=4830 DATA_DIR=/data WEB_DIR=/app/web RULES_DIR=/app/server/data CANVAS_DIR=/app/hivemind AUTH_MODE=login KOKORO_MODEL_DIR=/app/models
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
 COPY server/package.json server/
