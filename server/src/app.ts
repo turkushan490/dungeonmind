@@ -8,6 +8,7 @@ import { gameRoutes } from './api/games.js';
 import { hivemindRoutes } from './api/hivemind.js';
 import { rulesRoutes } from './api/rules.js';
 import { tableRoutes } from './api/table.js';
+import { ttsRoutes } from './api/tts.js';
 import { authRoutes } from './auth/index.js';
 import { registerEngine } from './game/engine.js';
 import { config } from './config.js';
@@ -48,6 +49,7 @@ export async function buildApp(opts: { logger?: boolean; web?: boolean; realtime
   gameRoutes(app);
   tableRoutes(app);
   bookkeepingRoutes(app);
+  ttsRoutes(app);
 
   if (opts.realtime !== false) attachRealtime(app);
 

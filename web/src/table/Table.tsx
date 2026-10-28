@@ -10,6 +10,7 @@ import { AskBox, ChoiceBox } from './ChoiceBox';
 import { StoryLog } from './StoryLog';
 import { useLog } from './useLog';
 import { tableExtras } from './extras';
+import { NowPlayingBar, ReadSelection } from './Narration';
 
 const PHASE: Record<string, string> = {
   opening: 'The DM is setting the scene…',
@@ -181,6 +182,8 @@ export function Table({ id }: { id: string }) {
         </section>
       </main>
       {campaign && <CampaignModal g={g} onClose={() => setCampaign(false)} />}
+      <NowPlayingBar />
+      <ReadSelection />
     </div>
   );
 }

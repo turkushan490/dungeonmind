@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 
 /** What a fake canvas run returns: outputs by node label, an error, or a delay. */
 export interface FakeRun {
-  outputs?: Record<string, string>;
+  outputs?: Record<string, string | undefined>;
   error?: string;
   /** Streamed as token events of this label before node_done. */
   stream?: { label: string; text: string };
@@ -99,6 +99,7 @@ export class FakeHiveMind {
           return;
         }
         for (const [label, text] of Object.entries(answer.outputs ?? {})) {
+          if (text === undefined) continue;
           run.outputs[label] = { nodeId: label, type: 'llm', text };
           run.events.push(JSON.stringify({ type: 'node_done', label, text }));
         }

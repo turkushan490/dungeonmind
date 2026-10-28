@@ -201,6 +201,8 @@ export interface GameState {
   /** Live narration while it streams. */
   streaming?: string;
   speakers?: { name: string; kind: string; gender?: string; age?: string }[];
+  /** NPC name → the voice the narrator gives them (kept for the whole game). */
+  voices?: Record<string, { voice: string; fx: string }>;
 }
 
 export interface LogEntry {

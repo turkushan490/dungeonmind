@@ -130,3 +130,12 @@ Every turn runs on the server, step by step, and every step is in the story log:
 **Rerolls:** any player can ask to have the last narration told again. A **majority** of the players (one vote each) must agree. The turn rolls back to just before the narration and the DM tells it again **with the same dice**. The host sets the budget at setup.
 
 **Host override:** the host can set HP, temp HP, XP, gold, exhaustion, counters and conditions directly; every override is logged for everyone.
+
+## 10. Narrator voices
+
+- **Kokoro (default, built in):** Kokoro-82M runs inside the container on the CPU (`kokoro-js`, ONNX, no Python). The image build bakes the model in (`/app/models`); if that wasn't possible it downloads once to `/data/models` on first use. 28 English voices (American and British).
+- **Chatterbox (optional):** the `ghcr.io/turkushan490/dungeonmind:full` image adds Python, CPU torch and [Chatterbox](https://github.com/resemble-ai/chatterbox) (MIT) as a sidecar on `127.0.0.1:4831`. Pick it in **Settings → Narrator voice → Engine**. It clones a short reference clip per voice (DungeonMind records these with Kokoro into `/data/voices/<voice>.wav`; you can drop in your own). It's much slower on a CPU; with an NVIDIA GPU run the container with `--gpus all`. The `:full` image is built on version tags or by hand (Actions → build → Run workflow).
+- **Listening test:** Settings → Narrator voice has a test box. Try both engines on real story text; the admin picks the default engine and narrator voice there.
+- **Voice casting:** the narrator speaks in each listener's own chosen voice. The State LLM tags who speaks; quoted lines go to that NPC, who gets a fitting voice from the library (gender, age, monster) the first time and keeps it for the whole game. Monsters, giants, ghosts and tiny creatures get **effects** (pitch, distortion, reverb) with ffmpeg.
+- **Per user:** voice, speed, volume, auto-read of new narration, and highlighting of the spoken word. Select any text in the story and press **Read this aloud**. Stop and Skip are always visible while something plays.
+- **Audio cache:** each narration is spoken once per voice and stored (`/data/audio`), so every listener with that voice plays the same file. New narration is pre-spoken in the default voice right after the turn. Audio unplayed for the retention period (default 14 days) is deleted.

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useMe } from '../me';
 import { toast } from '../notify';
+import { VoiceSettings } from './VoiceSettings';
 
 interface ModelRef {
   providerId: string;
@@ -299,6 +300,7 @@ export function SettingsPage() {
   return (
     <div className="space-y-4">
       <Reading />
+      <VoiceSettings />
       {me.role === 'admin' && <HiveMindSettings />}
       {me.role === 'admin' && <Users />}
     </div>

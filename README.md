@@ -5,7 +5,7 @@ Self-hostable group tabletop RPG (D&D 5e: SRD 5.1 / 2014 and SRD 5.2 / 2024) wit
 Groups play together in the browser. The AI makes the adventure, narrates and offers choices; **the server owns every number**: dice, hit points, spell slots and feature uses are tracked every turn.
 
 - One Docker container on port **4830**, CPU only, everything in `/data` (SQLite).
-- Image: `ghcr.io/turkushan490/dungeonmind:latest` (built by GitHub Actions).
+- Image: `ghcr.io/turkushan490/dungeonmind:latest` (built by GitHub Actions). `:full` adds the Chatterbox voice engine.
 - Unraid: Community Apps template in [`templates/dungeonmind.xml`](templates/dungeonmind.xml).
 - **Adults only (18+).** Every account confirms its age once.
 
@@ -32,6 +32,7 @@ Open `http://<host>:4830`, create the first account (it becomes the admin), then
 | `HIVEMIND_URL`, `HIVEMIND_TOKEN` | – | Seed the HiveMind connection (changeable in Settings) |
 | `SECURE_COOKIES` | `false` | `true` behind HTTPS |
 | `SECRET_KEY` | generated | Encrypts the stored HiveMind token |
+| `TTS_ENGINE` | `kokoro` | `kokoro`, `chatterbox` (`:full` image) or `off`; changeable in Settings |
 
 ## Development
 

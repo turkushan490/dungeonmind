@@ -3,6 +3,7 @@ import { DiceTray } from './DiceTray';
 import { tableExtras } from './extras';
 import { Approvals, HostTools, RerollBar, SheetActions } from './HostPanel';
 import { Initiative, ZoneBoard } from './ZoneBoard';
+import { Narration } from './Narration';
 
 function Board({ g }: { g: GameDetail }) {
   return (
@@ -21,4 +22,5 @@ export function registerBookkeeping() {
   tableExtras.board = Board;
   tableExtras.sheet = SheetActions;
   tableExtras.top = RerollBar;
+  tableExtras.narration = Narration;
 }
