@@ -46,6 +46,8 @@ export interface GameSettings {
   sceneImages?: boolean;
   /** The scripted tutorial (no HiveMind). */
   tutorial?: boolean;
+  /** Opt-in: this game's DM turns may be exported as training data for HiveMind's Lab. */
+  labExport?: boolean;
 }
 
 export interface GameMember {

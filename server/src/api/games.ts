@@ -33,6 +33,7 @@ export function cleanSettings(input: Partial<GameSettings>, base: GameSettings =
   if (typeof input.wishes === 'string') s.wishes = input.wishes.slice(0, 4000);
   if (typeof input.houseRules === 'string') s.houseRules = input.houseRules.slice(0, 4000);
   if (input.sceneImages !== undefined) s.sceneImages = !!input.sceneImages;
+  if (input.labExport !== undefined) s.labExport = !!input.labExport;
   if (input.formValues && typeof input.formValues === 'object') s.formValues = JSON.parse(JSON.stringify(input.formValues).slice(0, 20_000));
   if (input.pitch && typeof input.pitch === 'object') s.pitch = { title: String(input.pitch.title ?? '').slice(0, 200), hook: String(input.pitch.hook ?? '').slice(0, 2000), tone: input.pitch.tone?.slice(0, 200) };
   return s;
@@ -179,7 +180,7 @@ export function gameRoutes(app: FastifyInstance) {
       if (g.settings.rerolls !== before) g.state.rerollsLeft = g.settings.rerolls;
     } else {
       // During play only the approval thresholds and house rules can change.
-      g.settings = cleanSettings({ approvalXp: body.approvalXp, approvalGold: body.approvalGold, houseRules: body.houseRules, sceneImages: body.sceneImages }, g.settings);
+      g.settings = cleanSettings({ approvalXp: body.approvalXp, approvalGold: body.approvalGold, houseRules: body.houseRules, sceneImages: body.sceneImages, labExport: body.labExport }, g.settings);
     }
     saveGame(g);
     broadcast(g);

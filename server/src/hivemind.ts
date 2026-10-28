@@ -311,3 +311,7 @@ export async function withRetry<T>(fn: (attempt: number) => Promise<T>, opts: { 
   }
   throw last;
 }
+
+/** Asks HiveMind to download a model into one of its Ollama providers (e.g. the Lab's fine-tuned DM from Hugging Face). */
+export const pullModel = (providerId: string, model: string) =>
+  call<Record<string, unknown>>(`/api/ollama/${encodeURIComponent(providerId)}/pull`, { method: 'POST', body: JSON.stringify({ model }), timeoutMs: 60_000 });

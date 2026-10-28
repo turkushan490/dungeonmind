@@ -64,6 +64,21 @@ export function setPhase(g: GameRow, phase: GameState['phase'], extra: Partial<G
 export async function dm(g: GameRow, canvasId: string, question: string, vars: Record<string, string>, stream = false): Promise<RunResult> {
   // The tutorial has its own scripted DM: no HiveMind, no queue.
   if (g.settings.tutorial) return tutorialRun(loadGame(g.id) ?? g, canvasId, question, vars, gameCharacters(g.id));
+  const result = await askDm(g, canvasId, question, vars, stream);
+  // Opted-in games keep what the DM was asked and answered (HiveMind Lab training data).
+  if (g.settings.labExport)
+    db.prepare('INSERT INTO lab_records (game_id, turn, canvas, question, vars, outputs) VALUES (?, ?, ?, ?, ?, ?)').run(
+      g.id,
+      g.state.turn,
+      canvasId,
+      question,
+      JSON.stringify(vars),
+      JSON.stringify(Object.fromEntries(Object.entries(result.outputs).map(([k, v]) => [k, v.text]))),
+    );
+  return result;
+}
+
+function askDm(g: GameRow, canvasId: string, question: string, vars: Record<string, string>, stream: boolean): Promise<RunResult> {
   return think(
     g.id,
     () =>

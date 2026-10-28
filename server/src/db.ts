@@ -131,6 +131,20 @@ const MIGRATIONS = [
   );
   CREATE INDEX homebrew_ruleset ON homebrew(ruleset, kind);
   `,
+  // M13: what the DM was asked and answered, for opted-in games (training data for HiveMind's Lab)
+  `
+  CREATE TABLE lab_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+    turn INTEGER NOT NULL,
+    canvas TEXT NOT NULL,
+    question TEXT NOT NULL,
+    vars TEXT NOT NULL,
+    outputs TEXT NOT NULL,
+    at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX lab_records_game ON lab_records(game_id, id);
+  `,
 ];
 
 export const db = new DatabaseSync(join(config.dataDir, 'dungeonmind.db'));

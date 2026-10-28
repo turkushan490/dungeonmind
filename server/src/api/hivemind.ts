@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { RULESETS, type Ruleset } from '@dungeonmind/shared';
 import { requireAdmin, requireUser } from '../auth/index.js';
 import { getSetting, json, setSetting } from '../db.js';
-import { canvasFiles, health, hivemindSettings, installCanvases, listModels, memoryImport, saveHivemindSettings, type ModelRoles } from '../hivemind.js';
+import { canvasFiles, health, hivemindSettings, installCanvases, listModels, memoryImport, pullModel, saveHivemindSettings, type ModelRoles } from '../hivemind.js';
 import { memoryEntries } from '../rules/index.js';
 
 interface InstallState {
@@ -53,6 +53,28 @@ export function hivemindRoutes(app: FastifyInstance) {
     const canvases = await installCanvases();
     saveState({ ...state(), canvases, canvasesAt: new Date().toISOString() });
     return { canvases };
+  });
+
+  /**
+   * The Lab's fine-tuned DM model as the default (M13): optionally pull it into Ollama through HiveMind,
+   * use it for the story and JSON blocks, and reinstall the canvases with it.
+   */
+  app.post('/api/hivemind/dm-model', { preHandler: requireAdmin }, async (req, reply) => {
+    const { providerId, model, pull, roles } = (req.body ?? {}) as { providerId?: string; model?: string; pull?: boolean; roles?: ('story' | 'json')[] };
+    if (!providerId || !model || model.length > 200) return reply.code(400).send({ error: 'Pick the provider and the model name' });
+    let pulled: unknown;
+    try {
+      if (pull) pulled = await pullModel(providerId, model);
+    } catch (err) {
+      return reply.code(502).send({ error: (err as Error).message });
+    }
+    const s = hivemindSettings();
+    const next = { ...s.models };
+    for (const r of roles?.length ? roles : (['story', 'json'] as const)) next[r] = { providerId, model };
+    saveHivemindSettings({ models: next });
+    // Reinstalling keeps models picked by hand in HiveMind; nodes without one get the new default.
+    const canvases = await installCanvases().catch(() => []);
+    return { models: next, pulled, canvases };
   });
 
   /** Loads the SRD into HiveMind memory (rules:srd51 / rules:srd52). Runs in the background; poll GET /api/settings/hivemind. */

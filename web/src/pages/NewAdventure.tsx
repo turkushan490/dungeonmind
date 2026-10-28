@@ -48,6 +48,10 @@ export function SettingsFields({ v, set, locked }: { v: Record<string, any>; set
         <input type="checkbox" className="accent-indigo-500" checked={v.sceneImages !== false} onChange={(e) => set({ sceneImages: e.target.checked })} />
         Illustrate new scenes (HiveMind images)
       </label>
+      <label className="flex items-center gap-2 text-sm" title="The DM's prompts and answers of this game may be exported as training data for HiveMind's Lab">
+        <input type="checkbox" className="accent-indigo-500" checked={!!v.labExport} onChange={(e) => set({ labExport: e.target.checked })} />
+        Share this game's DM turns with the Lab (opt-in)
+      </label>
     </div>
   );
 }

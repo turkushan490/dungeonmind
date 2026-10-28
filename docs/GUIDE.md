@@ -179,3 +179,11 @@ The whole app works on a phone: the table's three panes become swipeable tabs (S
 ## 15. Android
 
 The Android app is a Capacitor shell in [`android/`](../android) (see its README). GitHub Actions builds the APK on changes and attaches it to releases on `v*` tags. Install it, enter your server address once, and log in on your server's own login page (both auth modes). It shows the same app with a bottom tab bar; Settings → Change server switches servers. There are no push notifications; invites and notices appear in the app.
+
+## 16. HiveMind Lab (training a faster DM)
+
+HiveMind's Training Lab simulates games, scores models and fine-tunes a fast DM model. DungeonMind helps in three ways (details and JSON in [LAB_API.md](LAB_API.md)):
+
+1. **The Bookkeeper as the judge:** the Lab sends each simulated turn (adjudication + state JSON) to `POST /api/lab/bookkeeper/check` with a DungeonMind API token (Settings → API tokens) and gets typed errors (resources used up, invented bonuses, HP without dice, …) and the party after the turn.
+2. **Real games, opt-in:** hosts can tick "Share this game's DM turns with the Lab"; the Lab downloads them as chat JSONL with the Bookkeeper's notes as labels.
+3. **The fine-tuned model as the default:** Settings → HiveMind → Fine-tuned DM model → **Pull and use**.
