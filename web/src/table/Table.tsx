@@ -11,6 +11,7 @@ import { StoryLog } from './StoryLog';
 import { useLog } from './useLog';
 import { tableExtras } from './extras';
 import { NowPlayingBar, ReadSelection } from './Narration';
+import { DiceOverlay } from './DiceOverlay';
 
 const PHASE: Record<string, string> = {
   opening: 'The DM is setting the scene…',
@@ -183,6 +184,7 @@ export function Table({ id }: { id: string }) {
       </main>
       {campaign && <CampaignModal g={g} onClose={() => setCampaign(false)} />}
       <NowPlayingBar />
+      <DiceOverlay gameId={g.id} />
       <ReadSelection />
     </div>
   );

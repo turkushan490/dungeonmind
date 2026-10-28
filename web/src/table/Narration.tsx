@@ -5,6 +5,8 @@ import { playNarration, readAloud, skip, stop, useNowPlaying, type NarratorPrefs
 
 const prefsOf = (p: Record<string, unknown>): NarratorPrefs => (p.narrator as NarratorPrefs) ?? {};
 const autoplayed = new Set<number>();
+/** Narrations already written out (the ink effect plays once). */
+const inked = new Set<number>();
 
 /** A narration in the story log: words that light up as the narrator speaks, and a play button. */
 export function Narration({ g, e, last }: { g: GameDetail; e: LogEntry; last: boolean }) {
@@ -18,6 +20,18 @@ export function Narration({ g, e, last }: { g: GameDetail; e: LogEntry; last: bo
     autoplayed.add(e.id);
     playNarration(g.id, e.id, e.text, prefs);
   }, [last, e.id]);
+  // Ink: a fresh narration writes itself out word by word, keeping pace with the narrator when it speaks.
+  const total = e.text.split(/\s+/).filter(Boolean).length;
+  const fresh = last && !inked.has(e.id) && Date.now() - new Date(e.at.replace(' ', 'T') + 'Z').getTime() < 60_000 && (me.prefs as { animations?: boolean }).animations !== false;
+  const [shown, setShown] = useState(fresh ? 0 : total);
+  useEffect(() => {
+    if (shown >= total) {
+      inked.add(e.id);
+      return;
+    }
+    const t = setTimeout(() => setShown((n) => Math.min(total, playing && now && now.word >= 0 ? Math.max(n + 1, Math.min(now.word + 4, n + 6)) : n + 1)), playing && !now?.loading ? 90 : 45);
+    return () => clearTimeout(t);
+  }, [shown, total, playing, now?.word]);
   let i = -1;
   return (
     <div className="group relative">
@@ -34,8 +48,9 @@ export function Narration({ g, e, last }: { g: GameDetail; e: LogEntry; last: bo
             if (!tok.trim()) return tok;
             i++;
             const lit = playing && now?.word === i;
+            const ink = i >= shown ? 'dm-ink-hidden' : shown < total && i >= shown - 3 ? 'dm-ink' : '';
             return (
-              <span key={k} className={lit ? 'dm-word-lit rounded bg-indigo-500/30 text-white' : undefined}>
+              <span key={k} className={`${ink} ${lit ? 'dm-word-lit rounded bg-indigo-500/30 text-white' : ''}`}>
                 {tok}
               </span>
             );

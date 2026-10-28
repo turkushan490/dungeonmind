@@ -2,7 +2,6 @@ import { useState } from 'react';
 import type { GameDetail, PendingRoll } from '@dungeonmind/shared';
 import { api } from '../api';
 import { useMe } from '../me';
-import { diceAnimation } from './diceAnimation';
 
 /** How many physical dice a roll needs: "2d6+1d4" → [6,6,4]; d20 tests with advantage need two d20s. */
 export function diceNeeded(r: PendingRoll): number[] {
@@ -26,8 +25,6 @@ function RollRow({ g, r }: { g: GameDetail; r: PendingRoll }) {
   const send = async (body: object) => {
     setBusy(true);
     try {
-      const sides = need;
-      await diceAnimation.before?.(sides);
       await api(`/api/games/${g.id}/rolls/${r.id}`, { body });
     } finally {
       setBusy(false);
@@ -107,7 +104,6 @@ export function DiceTray({ g }: { g: GameDetail }) {
   return (
     <div>
       <h3 className="label">Dice {g.state.phase === 'rolling' && <span className="dm-breathe normal-case text-indigo-300">· waiting for rolls</span>}</h3>
-      <div id="dice-box" className="dm-dice-box" />
       <ul className="space-y-1.5">
         {g.state.rolls.map((r) => (
           <RollRow key={r.id} g={g} r={r} />

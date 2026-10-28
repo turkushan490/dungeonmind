@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { ABILITIES, SKILLS, type Character, type Counter, type Derived } from '@dungeonmind/shared';
 import { signed, titleCase } from '../rules';
 
@@ -24,11 +25,26 @@ export function Pips({ c }: { c: Counter }) {
 
 const RECHARGE: Record<string, string> = { short: 'short rest', long: 'long rest', dawn: 'dawn', turn: 'each turn', none: '' };
 
+/** "hit" when the value drops, "heal" when it rises (for a moment). */
+function useChange(value: number): '' | 'hit' | 'heal' {
+  const prev = useRef(value);
+  const [fx, setFx] = useState<'' | 'hit' | 'heal'>('');
+  useEffect(() => {
+    if (value === prev.current) return;
+    setFx(value < prev.current ? 'hit' : 'heal');
+    prev.current = value;
+    const t = setTimeout(() => setFx(''), 900);
+    return () => clearTimeout(t);
+  }, [value]);
+  return fx;
+}
+
 export function HpBar({ hp, max, temp = 0 }: { hp: number; max: number; temp?: number }) {
+  const fx = useChange(hp);
   const pct = Math.max(0, Math.min(100, (hp / Math.max(1, max)) * 100));
   const color = pct > 50 ? 'bg-emerald-500' : pct > 25 ? 'bg-amber-500' : 'bg-red-600';
   return (
-    <div>
+    <div className={fx === 'hit' ? 'dm-hp-hit' : fx === 'heal' ? 'dm-hp-heal' : ''}>
       <div className="flex items-baseline justify-between text-sm">
         <span className="label mb-0">Hit points</span>
         <span className="font-mono">
@@ -45,8 +61,10 @@ export function HpBar({ hp, max, temp = 0 }: { hp: number; max: number; temp?: n
 
 /** The character sheet: used in the library and at the table (left pane). */
 export function Sheet({ c, d, compact, children }: { c: Character; d: Derived; compact?: boolean; children?: React.ReactNode }) {
+  const lvl = useChange(c.level);
   return (
-    <div className="space-y-3 text-sm">
+    <div className="relative space-y-3 text-sm">
+      {lvl === 'heal' && <div className="dm-levelup-burst" aria-hidden />}
       <div className="flex gap-3">
         {c.portrait ? (
           <img src={c.portrait} alt="" className="h-20 w-16 shrink-0 rounded-md border border-[#30363d] object-cover" />

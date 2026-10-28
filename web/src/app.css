@@ -77,3 +77,35 @@ html[data-dyslexia='1'] .story, html[data-dyslexia='1'] .readable { font-family:
 .dm-md img { max-width: 100%; border-radius: 8px; }
 
 .scroll-thin { scrollbar-width: thin; scrollbar-color: #30363d transparent; }
+
+/* ---- M9: animations ---- */
+@keyframes dm-ink-in { from { opacity: 0; filter: blur(3px); color: #a5b4fc; text-shadow: 0 0 10px #818cf8; } to { opacity: 1; filter: none; } }
+.dm-ink { animation: dm-ink-in 0.5s ease-out both; }
+.dm-ink-hidden { opacity: 0; }
+
+@keyframes dm-hit { 0%, 100% { transform: none; } 20% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-2px); } }
+@keyframes dm-hit-flash { 0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); } 30% { box-shadow: 0 0 18px 4px rgba(220, 38, 38, 0.55); } 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); } }
+.dm-hp-hit { animation: dm-hit 0.45s ease-out; }
+.dm-hp-hit .dm-hp-bar, .dm-hp-hit .dm-hp-value { animation: dm-hit-flash 0.9s ease-out; color: #fca5a5; }
+@keyframes dm-heal-glow { 0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); } 40% { box-shadow: 0 0 20px 5px rgba(52, 211, 153, 0.55); } 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); } }
+.dm-hp-heal .dm-hp-bar { animation: dm-heal-glow 0.9s ease-out; }
+.dm-hp-heal .dm-hp-value { color: #6ee7b7; transition: color 0.9s; }
+
+@keyframes dm-pip-out { 0% { color: #a5b4fc; text-shadow: 0 0 8px #818cf8; transform: scale(1.3); } 100% { color: #475569; text-shadow: none; transform: none; } }
+.dm-pip { display: inline-block; transition: color 0.4s; }
+.dm-pip-spent { animation: dm-pip-out 0.9s ease-out; }
+
+@keyframes dm-burst { 0% { opacity: 0.9; transform: scale(0.3); } 100% { opacity: 0; transform: scale(2.2); } }
+.dm-levelup-burst { position: absolute; left: 50%; top: 40px; width: 160px; height: 160px; margin-left: -80px; border-radius: 9999px; pointer-events: none; background: radial-gradient(circle, rgba(212, 175, 55, 0.85), rgba(212, 175, 55, 0) 70%); animation: dm-burst 1.2s ease-out forwards; z-index: 5; }
+@keyframes dm-gold { 50% { box-shadow: 0 0 16px 2px rgba(212, 175, 55, 0.7); } }
+.dm-levelup { background: linear-gradient(90deg, #b45309, #d4af37); animation: dm-gold 1.6s ease-in-out infinite; }
+
+@keyframes dm-reveal-in { 0% { opacity: 0; transform: scale(0.6) rotate(-8deg); } 60% { transform: scale(1.08) rotate(1deg); } 100% { opacity: 1; transform: none; } }
+.dm-reveal { animation: dm-reveal-in 0.45s cubic-bezier(0.2, 1.4, 0.4, 1); }
+.dm-crit { box-shadow: 0 0 40px 6px rgba(212, 175, 55, 0.5); }
+.dm-face { animation: dm-reveal-in 0.5s both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dm-ink, .dm-hp-hit, .dm-hp-hit .dm-hp-bar, .dm-hp-heal .dm-hp-bar, .dm-pip-spent, .dm-levelup-burst, .dm-reveal, .dm-face, .dm-levelup { animation: none !important; }
+  .dm-ink-hidden { opacity: 1; }
+}

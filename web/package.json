@@ -9,6 +9,7 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@3d-dice/dice-box": "^1.1.4",
     "dompurify": "^3.2.6",
     "marked": "^14.1.4",
     "react": "^19.1.0",
