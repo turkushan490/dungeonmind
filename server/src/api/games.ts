@@ -9,6 +9,8 @@ import { HiveMindError, outputJson, runCanvas, withRetry } from '../hivemind.js'
 import { emitToLobby, emitToUser, onGameJoin } from '../realtime.js';
 import { isRuleset, rules } from '../rules/index.js';
 import { loadCharacter, rolledValues } from './characters.js';
+import { buildCharacter } from '../game/character.js';
+import { startGame } from '../game/turn.js';
 
 const int = (v: unknown, min: number, max: number, fallback: number) => {
   const n = Math.round(Number(v));
@@ -117,6 +119,44 @@ export function gameRoutes(app: FastifyInstance) {
       );
       db.prepare("INSERT INTO game_members (game_id, user_id, role, status) VALUES (?, ?, 'host', 'joined')").run(id, req.user!.id);
     });
+    return { id };
+  });
+
+  /** The tutorial: a private solo game with a scripted DM (no HiveMind needed), with your character or a ready-made one. */
+  app.post('/api/tutorial', { preHandler: requireUser }, async (req, reply) => {
+    const src = (req.body as { characterId?: string })?.characterId ? loadCharacter((req.body as { characterId: string }).characterId) : undefined;
+    if (src && src.ownerId !== req.user!.id) return reply.code(404).send({ error: 'Character not found' });
+    const ruleset = src?.ruleset ?? 'srd51';
+    const base =
+      src ??
+      buildCharacter(
+        rules('srd51'),
+        {
+          ruleset: 'srd51',
+          name: 'Rook',
+          species: 'human',
+          class: 'fighter',
+          background: 'acolyte',
+          level: 1,
+          abilityMethod: 'standard',
+          baseAbilities: { str: 15, dex: 13, con: 14, int: 8, wis: 12, cha: 10 },
+          skills: ['athletics', 'perception'],
+          equipment: ['Chain Mail', 'Longsword', 'Shield', '10 gp'],
+          appearance: 'a weathered human sellsword',
+        },
+        { id: 'tutorial', ownerId: req.user!.id },
+      );
+    const id = newId();
+    const settings = cleanSettings({ startLevel: base.level, endLevel: Math.min(20, base.level + 1), rerolls: 1, sceneImages: false }, DEFAULT_SETTINGS);
+    settings.tutorial = true;
+    settings.pitch = { title: 'The Old Mill (tutorial)', hook: 'Learn the table: choices, dice, a short fight, XP and a level-up.' };
+    const c: GameCharacter = { ...base, id: newId(), userId: req.user!.id, seated: true, absent: false };
+    tx(() => {
+      db.prepare("INSERT INTO games (id, host_id, name, ruleset, visibility, settings, state) VALUES (?, ?, 'Tutorial: The Old Mill', ?, 'private', ?, ?)").run(id, req.user!.id, ruleset, JSON.stringify(settings), JSON.stringify(freshState(1)));
+      db.prepare("INSERT INTO game_members (game_id, user_id, role, status) VALUES (?, ?, 'host', 'joined')").run(id, req.user!.id);
+      db.prepare('INSERT INTO game_characters (id, game_id, user_id, source_id, data) VALUES (?, ?, ?, ?, ?)').run(c.id, id, req.user!.id, src?.id ?? null, JSON.stringify(c));
+    });
+    await startGame(loadGame(id)!);
     return { id };
   });
 

@@ -8,6 +8,7 @@ import { campaignFor, partyJson, recentTurns } from './prompt.js';
 import { think } from './queue.js';
 import { broadcast, gameCharacters, loadGame, members, saveGame, saveGameCharacter, type GameRow } from './store.js';
 import { clip, sameName } from './text.js';
+import { tutorialRun } from './tutorial.js';
 
 /** The state JSON the dnd-narrate canvas returns (see hivemind/dnd-narrate.canvas.json). */
 export interface StateJson {
@@ -61,6 +62,8 @@ export function setPhase(g: GameRow, phase: GameState['phase'], extra: Partial<G
 
 /** Every DM call goes through the queue, retries on failure, and streams narration to the table. */
 export async function dm(g: GameRow, canvasId: string, question: string, vars: Record<string, string>, stream = false): Promise<RunResult> {
+  // The tutorial has its own scripted DM: no HiveMind, no queue.
+  if (g.settings.tutorial) return tutorialRun(loadGame(g.id) ?? g, canvasId, question, vars, gameCharacters(g.id));
   return think(
     g.id,
     () =>
@@ -105,9 +108,11 @@ function fail(g: GameRow, err: unknown) {
 // ---- Start ----
 
 export async function startGame(g: GameRow): Promise<void> {
-  const h = await health();
-  if (!h.ok) throw new HiveMindError(`HiveMind is not reachable: ${h.error ?? 'unknown'}`, 503, false);
-  if (h.missing.length) throw new HiveMindError(`HiveMind is missing ${h.missing.join(', ')} (update HiveMind)`, 409, false);
+  if (!g.settings.tutorial) {
+    const h = await health();
+    if (!h.ok) throw new HiveMindError(`HiveMind is not reachable: ${h.error ?? 'unknown'}`, 503, false);
+    if (h.missing.length) throw new HiveMindError(`HiveMind is missing ${h.missing.join(', ')} (update HiveMind)`, 409, false);
+  }
   const chars = gameCharacters(g.id);
   if (!chars.length) throw new HiveMindError('Seat at least one character first', 400, false);
   tx(() => {

@@ -20,7 +20,7 @@ function RollRow({ g, r }: { g: GameDetail; r: PendingRoll }) {
   const [vals, setVals] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const owner = g.characters.find((c) => c.id === r.characterId);
-  const mine = owner && (owner.userId === me.id || g.myRole === 'host');
+  const mine = owner && (owner.userId === me.id || (g.myRole === 'host' && owner.absent));
   const need = diceNeeded(r);
   const send = async (body: object) => {
     setBusy(true);

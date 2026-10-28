@@ -67,6 +67,11 @@ export function Landing() {
       <p className="story text-sm">
         Gather your party. An AI Dungeon Master tells the tale, the server keeps every number honest: dice, hit points, spell slots and every last use of Channel Divinity.
       </p>
+      <ul className="mx-auto mt-3 grid max-w-md gap-1 text-left text-xs text-slate-400 sm:grid-cols-3">
+        <li>⚔ D&amp;D 5e, 2014 and 2024 rules</li>
+        <li>🎲 Server dice or your own</li>
+        <li>🔊 A narrator voice for every NPC</li>
+      </ul>
     </div>
   );
 }

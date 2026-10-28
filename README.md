@@ -4,6 +4,8 @@ Self-hostable group tabletop RPG (D&D 5e: SRD 5.1 / 2014 and SRD 5.2 / 2024) wit
 
 Groups play together in the browser. The AI makes the adventure, narrates and offers choices; **the server owns every number**: dice, hit points, spell slots and feature uses are tracked every turn.
 
+**Features:** character library (step-by-step builder with live legality checks, AI-made sheets, import) · adventure setup with AI pitches and a dynamic setup form · turn loop with adjudication, resource checks, server dice or "I roll myself", and the Bookkeeper (HP, counters, conditions, rests, XP/level-ups) · initiative and a zone board · reroll voting · living `campaign.md` kept by a Chronicler · Ask the DM · built-in narrator voices (Kokoro, CPU) with NPC casting · portraits and scene images · 3D dice · homebrew · in-app guide, rules pages and a no-AI tutorial · Android app.
+
 - One Docker container on port **4830**, CPU only, everything in `/data` (SQLite).
 - Image: `ghcr.io/turkushan490/dungeonmind:latest` (built by GitHub Actions). `:full` adds the Chatterbox voice engine.
 - Unraid: Community Apps template in [`templates/dungeonmind.xml`](templates/dungeonmind.xml).

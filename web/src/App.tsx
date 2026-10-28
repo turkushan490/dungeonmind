@@ -8,6 +8,8 @@ import { Lobby } from './pages/Lobby';
 import { Login } from './pages/Login';
 import { SettingsPage } from './pages/Settings';
 import { HomebrewPage } from './pages/Homebrew';
+import { GuidePage } from './pages/Guide';
+import { RulesPage } from './pages/Rules';
 import { GameSetup } from './pages/GameSetup';
 import { Table } from './table/Table';
 import { NewAdventure } from './pages/NewAdventure';
@@ -19,6 +21,7 @@ const NAV: [string, string][] = [
   ['/', 'Lobby'],
   ['/characters', 'Characters'],
   ['/homebrew', 'Homebrew'],
+  ['/guide', 'Guide'],
   ['/settings', 'Settings'],
 ];
 
@@ -72,6 +75,7 @@ export function App() {
 
   const table = match('/table/:id', path);
   const gameSetup = match('/games/:id', path);
+  const rulesPage = match('/rules/:ruleset', path) as { ruleset: 'srd51' | 'srd52' } | null;
   const charView = match('/characters/:id', path);
   const charEdit = match('/characters/:id/edit', path);
 
@@ -107,6 +111,8 @@ export function App() {
         {path === '/' && <Lobby />}
         {path === '/settings' && <SettingsPage />}
         {path === '/homebrew' && <HomebrewPage />}
+        {path === '/guide' && <GuidePage />}
+        {rulesPage && (rulesPage.ruleset === 'srd51' || rulesPage.ruleset === 'srd52') && <RulesPage ruleset={rulesPage.ruleset} />}
         {table && <Table id={table.id} />}
         {path === '/adventures/new' && <NewAdventure />}
         {gameSetup && <GameSetup id={gameSetup.id} />}

@@ -148,6 +148,16 @@ export function Lobby() {
       </div>
       <aside className="space-y-4">
         <Presence />
+        <section className="card space-y-2">
+          <h2 className="rune-title">New here?</h2>
+          <p className="text-xs text-slate-400">A five-minute scripted adventure that shows the whole table. No AI needed.</p>
+          <button className="btn w-full" onClick={async () => navigate(`/table/${(await api<{ id: string }>('/api/tutorial', { body: {} })).id}`)}>
+            Play the tutorial
+          </button>
+          <button className="btn-ghost w-full" onClick={() => navigate('/guide')}>
+            Read the guide
+          </button>
+        </section>
         <section className="card">
           <h2 className="rune-title mb-2">Characters</h2>
           <button className="btn-ghost w-full" onClick={() => navigate('/characters')}>

@@ -1,6 +1,8 @@
 # DungeonMind guide
 
-This is the setup and admin guide. The player guide lives inside the app (**Guide** tab).
+This is the setup and admin guide. The player guide lives inside the app (**Guide** tab, with screenshots), together with per-ruleset **Rules** pages and a scripted **tutorial** adventure that needs no AI (Lobby → Play the tutorial).
+
+**Contents:** 1 Install · 2 Accounts · 3 Backups · 4 Connect HiveMind · 5 Rules data · 6 Characters · 7 Adventures · 8 Playing · 9 Turn loop & Bookkeeper · 10 Voices · 11 Images · 12 Animations · 13 Homebrew · 14 Phones · 15 Android · 16 HiveMind Lab
 
 ## 1. Install
 
@@ -11,6 +13,18 @@ This is the setup and admin guide. The player guide lives inside the app (**Guid
 
 ### Plain Docker
 See the README quick start. Everything lives in `/data`.
+
+### Behind Nginx Proxy Manager (HTTPS)
+Add a proxy host for `dm.example.com` → `http://<unraid-ip>:4830` with **Websockets Support** on (the table uses Socket.IO), request a certificate, and set `SECURE_COOKIES=true` in the container. For `AUTH_MODE=header` put the forward-auth snippet from section 2 in the host's Advanced tab.
+
+### First start
+1. Open the WebUI. With `AUTH_MODE=builtin`, register: the first account is the admin. With `AUTH_MODE=header`, the first person through the proxy is the admin.
+2. **Settings → HiveMind:** URL + token, models, *Install / update canvases*, *Load SRD rules into HiveMind memory* (section 4).
+3. **Settings → Narrator voice:** pick the default engine and narrator (section 10). The first narration takes a moment while the voice model loads.
+4. Try the tutorial, then start a real adventure.
+
+### CPU only
+The image needs no GPU. The narrator (Kokoro) runs on the CPU; all LLM and image work happens in HiveMind (which can use cloud models if there's no GPU anywhere).
 
 ## 2. Accounts (auth modes)
 

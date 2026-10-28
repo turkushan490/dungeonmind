@@ -44,6 +44,8 @@ export interface GameSettings {
   houseRules?: string;
   /** Illustrate new scenes with HiveMind images (default on). */
   sceneImages?: boolean;
+  /** The scripted tutorial (no HiveMind). */
+  tutorial?: boolean;
 }
 
 export interface GameMember {
