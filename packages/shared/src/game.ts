@@ -42,6 +42,8 @@ export interface GameSettings {
   formValues?: Record<string, string | number | string[]>;
   /** House rules / tone notes for the campaign file. */
   houseRules?: string;
+  /** Illustrate new scenes with HiveMind images (default on). */
+  sceneImages?: boolean;
 }
 
 export interface GameMember {

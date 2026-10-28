@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { RULESET_NAMES, type Character, type CharacterBuild, type Derived, type Ruleset } from '@dungeonmind/shared';
 import { api } from '../api';
+import { PortraitPicker } from '../components/PortraitPicker';
 import { Sheet } from '../components/Sheet';
 import { navigate } from '../router';
 import { titleCase } from '../rules';
@@ -193,6 +194,7 @@ export function CharacterView({ id, edit }: { id: string; edit?: boolean }) {
             Delete
           </button>
         </div>
+        <PortraitPicker c={c} onChanged={load} />
         <StoryFields c={c} onSaved={load} />
       </div>
     </div>

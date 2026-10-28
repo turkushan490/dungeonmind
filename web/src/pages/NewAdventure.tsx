@@ -44,6 +44,10 @@ export function SettingsFields({ v, set, locked }: { v: Record<string, any>; set
         <input type="checkbox" className="accent-indigo-500" disabled={locked} checked={v.allowManualScores} onChange={(e) => set({ allowManualScores: e.target.checked })} />
         Allow typed-in ability scores (imports)
       </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" className="accent-indigo-500" checked={v.sceneImages !== false} onChange={(e) => set({ sceneImages: e.target.checked })} />
+        Illustrate new scenes (HiveMind images)
+      </label>
     </div>
   );
 }

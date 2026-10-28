@@ -139,3 +139,10 @@ Every turn runs on the server, step by step, and every step is in the story log:
 - **Voice casting:** the narrator speaks in each listener's own chosen voice. The State LLM tags who speaks; quoted lines go to that NPC, who gets a fitting voice from the library (gender, age, monster) the first time and keeps it for the whole game. Monsters, giants, ghosts and tiny creatures get **effects** (pitch, distortion, reverb) with ffmpeg.
 - **Per user:** voice, speed, volume, auto-read of new narration, and highlighting of the spoken word. Select any text in the story and press **Read this aloud**. Stop and Skip are always visible while something plays.
 - **Audio cache:** each narration is spoken once per voice and stored (`/data/audio`), so every listener with that voice plays the same file. New narration is pre-spoken in the default voice right after the turn. Audio unplayed for the retention period (default 14 days) is deleted.
+
+## 11. Portraits and scene images
+
+- **Portraits:** on a character's page, **Make 4 portraits** runs the `dnd-portrait` canvas (an LLM writes the image prompt from the appearance, then one image block makes 4 variants with `batch: 4`). Pick one, **Regenerate**, or **Upload my own** (PNG/JPEG/WebP/GIF up to 8 MB; the server checks the bytes, not the file name). The portrait also updates that character's copies in games.
+- **Scene images:** when the State LLM describes a new scene (`image` in the state JSON), DungeonMind runs `dnd-scene` in the background and shows the picture above the zone board and in the story. Hosts can turn this off per game ("Illustrate new scenes").
+- Every image from HiveMind is **copied into DungeonMind's appdata** (`/data/images`), so games keep their pictures even if HiveMind's files are cleaned up.
+- Images need an image model (ComfyUI through HiveMind) on those canvases; without one, DungeonMind says so and the game goes on without pictures.

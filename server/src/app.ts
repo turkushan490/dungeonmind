@@ -7,7 +7,9 @@ import { characterRoutes } from './api/characters.js';
 import { gameRoutes } from './api/games.js';
 import { hivemindRoutes } from './api/hivemind.js';
 import { rulesRoutes } from './api/rules.js';
+import { portraitRoutes } from './api/portraits.js';
 import { tableRoutes } from './api/table.js';
+import { imageRoutes } from './images.js';
 import { ttsRoutes } from './api/tts.js';
 import { authRoutes } from './auth/index.js';
 import { registerEngine } from './game/engine.js';
@@ -50,6 +52,8 @@ export async function buildApp(opts: { logger?: boolean; web?: boolean; realtime
   tableRoutes(app);
   bookkeepingRoutes(app);
   ttsRoutes(app);
+  imageRoutes(app);
+  portraitRoutes(app);
 
   if (opts.realtime !== false) attachRealtime(app);
 
