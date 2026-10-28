@@ -10,6 +10,9 @@ Groups play together in the browser. The AI makes the adventure, narrates and of
 - Image: `ghcr.io/turkushan490/dungeonmind:latest` (built by GitHub Actions). `:full` adds the Chatterbox voice engine.
 - Unraid: Community Apps template in [`templates/dungeonmind.xml`](templates/dungeonmind.xml).
 - **Adults only (18+).** Every account confirms its age once.
+- Android app: [`android/`](android) (Capacitor), APK built by GitHub Actions.
+
+**Status:** milestones M1–M13 of [docs/PLAN.md](docs/PLAN.md) are built. Needs a HiveMind with the [DungeonMind changes](docs/HIVEMIND_CHANGES.md); the Lab talks back through [docs/LAB_API.md](docs/LAB_API.md). Guide: [docs/GUIDE.md](docs/GUIDE.md).
 
 ## Quick start
 
