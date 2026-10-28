@@ -117,6 +117,20 @@ const MIGRATIONS = [
     PRIMARY KEY (game_id, turn)
   );
   `,
+  // M10: homebrew
+  `
+  CREATE TABLE homebrew (
+    id TEXT PRIMARY KEY,
+    owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    ruleset TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    name TEXT NOT NULL,
+    data TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX homebrew_ruleset ON homebrew(ruleset, kind);
+  `,
 ];
 
 export const db = new DatabaseSync(join(config.dataDir, 'dungeonmind.db'));

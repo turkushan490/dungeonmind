@@ -109,3 +109,12 @@ html[data-dyslexia='1'] .story, html[data-dyslexia='1'] .readable { font-family:
   .dm-ink, .dm-hp-hit, .dm-hp-hit .dm-hp-bar, .dm-hp-heal .dm-hp-bar, .dm-pip-spent, .dm-levelup-burst, .dm-reveal, .dm-face, .dm-levelup { animation: none !important; }
   .dm-ink-hidden { opacity: 1; }
 }
+
+/* ---- M10: mobile polish ---- */
+@media (max-width: 640px) {
+  /* iOS zooms into inputs under 16px. */
+  .input { font-size: 16px; }
+  .card { padding: 0.85rem; }
+}
+.dm-safe-bottom { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+button, a { -webkit-tap-highlight-color: transparent; }

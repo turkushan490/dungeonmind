@@ -165,7 +165,7 @@ export function Table({ id }: { id: string }) {
           </button>
         ))}
       </nav>
-      <main className="grid min-h-0 flex-1 gap-3 p-3 lg:grid-cols-[320px_1fr_minmax(360px,34%)]" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      <main className="dm-safe-bottom grid min-h-0 flex-1 gap-3 p-2 sm:p-3 lg:grid-cols-[320px_1fr_minmax(360px,34%)]" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <section className={`card min-h-0 flex-col p-3 ${pane === 'sheet' ? 'flex' : 'hidden'} lg:flex`}>
           <SheetPane g={g} />
         </section>

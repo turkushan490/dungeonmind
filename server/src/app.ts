@@ -6,6 +6,8 @@ import { bookkeepingRoutes } from './api/bookkeeping.js';
 import { characterRoutes } from './api/characters.js';
 import { gameRoutes } from './api/games.js';
 import { hivemindRoutes } from './api/hivemind.js';
+import { homebrewRoutes } from './api/homebrew.js';
+import { registerHomebrew } from './rules/homebrew.js';
 import { rulesRoutes } from './api/rules.js';
 import { portraitRoutes } from './api/portraits.js';
 import { tableRoutes } from './api/table.js';
@@ -44,6 +46,7 @@ export async function buildApp(opts: { logger?: boolean; web?: boolean; realtime
   app.get('/api/presence', { preHandler: requireUser }, async () => presenceList());
 
   registerEngine();
+  registerHomebrew();
   authRoutes(app);
   rulesRoutes(app);
   hivemindRoutes(app);
@@ -54,6 +57,7 @@ export async function buildApp(opts: { logger?: boolean; web?: boolean; realtime
   ttsRoutes(app);
   imageRoutes(app);
   portraitRoutes(app);
+  homebrewRoutes(app);
 
   if (opts.realtime !== false) attachRealtime(app);
 

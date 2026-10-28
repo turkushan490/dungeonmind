@@ -7,6 +7,7 @@ import { AgeGate } from './pages/AgeGate';
 import { Lobby } from './pages/Lobby';
 import { Login } from './pages/Login';
 import { SettingsPage } from './pages/Settings';
+import { HomebrewPage } from './pages/Homebrew';
 import { GameSetup } from './pages/GameSetup';
 import { Table } from './table/Table';
 import { NewAdventure } from './pages/NewAdventure';
@@ -17,6 +18,7 @@ import { closeSocket, getSocket } from './socket';
 const NAV: [string, string][] = [
   ['/', 'Lobby'],
   ['/characters', 'Characters'],
+  ['/homebrew', 'Homebrew'],
   ['/settings', 'Settings'],
 ];
 
@@ -104,6 +106,7 @@ export function App() {
         )}
         {path === '/' && <Lobby />}
         {path === '/settings' && <SettingsPage />}
+        {path === '/homebrew' && <HomebrewPage />}
         {table && <Table id={table.id} />}
         {path === '/adventures/new' && <NewAdventure />}
         {gameSetup && <GameSetup id={gameSetup.id} />}

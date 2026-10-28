@@ -153,3 +153,11 @@ Every turn runs on the server, step by step, and every step is in the story log:
 - **Ink text:** a new narration writes itself out word by word, and keeps pace with the narrator voice when it's playing.
 - **Effects:** HP bars shake and flash red on damage and glow green on healing, spent spell-slot pips fade out, and a level-up bursts gold.
 - Turn them off in **Settings → Reading → Animations**; the system "reduce motion" setting is respected too.
+
+## 13. Homebrew
+
+**Homebrew** (top menu) lets anyone add their own **spells, items, monsters, feats, conditions, rules, species and backgrounds** per ruleset. They get ids starting with `hb-` so they never overwrite SRD content, and they join the rules for that ruleset: the builder offers them (a homebrew spell is legal for the classes you list), the rules search finds them, and **Settings → HiveMind → Load SRD rules into HiveMind memory** sends them to the DM too (run it again after adding homebrew). The maker or an admin can edit, disable or delete an entry. Numbers are clamped (AC ≤ 30, spell level 0–9, …).
+
+## 14. Phones
+
+The whole app works on a phone: the table's three panes become swipeable tabs (Sheet · Board · Story), inputs don't zoom on iOS, the bottom respects the home-indicator area, and **Add to Home Screen** installs it like an app (web manifest). The Android app (below) wraps the same pages.
