@@ -12,7 +12,7 @@ Groups play together in the browser. The AI makes the adventure, narrates and of
 - **Adults only (18+).** Every account confirms its age once.
 - Android app: [`android/`](android) (Capacitor), APK built by GitHub Actions.
 
-**Status:** milestones M1–M13 of [docs/PLAN.md](docs/PLAN.md) are built. Needs a HiveMind with the [DungeonMind changes](docs/HIVEMIND_CHANGES.md); the Lab talks back through [docs/LAB_API.md](docs/LAB_API.md). Guide: [docs/GUIDE.md](docs/GUIDE.md).
+**Status:** milestones M1–M13 are built. Needs a HiveMind with the [DungeonMind changes](docs/HIVEMIND_CHANGES.md); the Lab talks back through [docs/LAB_API.md](docs/LAB_API.md). Guide: [docs/GUIDE.md](docs/GUIDE.md).
 
 ## Quick start
 
@@ -54,7 +54,7 @@ server/data       SRD 5.1 + 5.2 rules data (CC-BY-4.0)
 web/src           Lobby · Characters · Adventure setup · Table · Settings · Guide
 hivemind/         the canvases DungeonMind installs into HiveMind
 templates/        Unraid Community Apps template
-docs/             PLAN.md · HIVEMIND_CHANGES.md · GUIDE.md · TURKUSHAN_AUTH_HEADERS.md
+docs/             HIVEMIND_CHANGES.md · GUIDE.md · TURKUSHAN_AUTH_HEADERS.md
 ```
 
 ## License & attribution

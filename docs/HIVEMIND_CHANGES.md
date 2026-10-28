@@ -1,6 +1,6 @@
 # HiveMind changes for DungeonMind
 
-**Status:** spec, not built yet. Start here for HiveMind milestone **M0** (API changes) and the **Lab track** (L1–L4).
+**Status:** Part 1 (M0 §1–§10) and Lab **L1–L2** are built (HiveMind milestone 7). **L3–L4 are not built yet**: see the TODO at the end. Notes on how it was built are marked *Built:*. User guides: [lab.md](lab.md), [decisions.md](decisions.md).
 
 ## Why
 
@@ -18,7 +18,6 @@ Rules for all work in this file:
 - Keep the HiveMind style: Node 24 + TS, Fastify, `node:sqlite`, React/Vite/Tailwind, tests in `server/test/`.
 - Add a DB migration to `MIGRATIONS` in `server/src/db/index.ts`, guarded by `PRAGMA user_version`.
 - Don't break existing canvases. Every new config field is optional and defaults to today's behaviour.
-***REMOVED***
 
 ---
 
@@ -174,6 +173,12 @@ GET /api/runs/r_abc            (after run_done)
 
 **Files:** `server/src/services/memory.ts` (add `search()` to `NodeServices.memory`), `server/src/nodes/index.ts` (the memory block), `server/src/api/settings.ts`, `server/src/db/index.ts` (migration: FTS table + triggers + pinned).
 
+*Built:*
+- The FTS5 table (porter stemming) and its triggers are created at startup, outside the numbered migrations, so a SQLite build without FTS5 still starts. It then uses the BM25 fallback in `services/memory.ts`.
+- Migration 9 adds `memory.tags` and `memory_keys(owner_id, key, pinned)`.
+- Small words ("the", "at", "ik", "op"…) are left out of the query.
+- The search block's output lists the matches separated by `---`.
+
 **Tests:**
 - Import 3 entries, then search "grapple" returns the grapple entry first.
 - `replace` wipes the key.
@@ -206,12 +211,19 @@ GET /api/runs/r_abc            (after run_done)
 
 `GET /api/health` → `{ ok, version, features: ["vars","history","jsonMode","memoryKeyTemplate","nodeOutputs","memorySearch","memoryImport","imageBatch","numCtx"] }`
 
+*Built:* the list is in `server/src/features.ts`. The decision-model flags `decisionProviders`, `decide` and `autoModel` are added too (see JEV_INTEGRATION.md §6).
+
 DungeonMind shows what's missing and refuses to start a game until the required ones are there. Add each flag in the same commit as its feature. This lives in `server/src/app.ts:54`.
 
 ## 10. Nice to have
 
 - **Canvas-scoped tokens:** a token limited to a list of canvas ids and memory key prefixes (`dnd:*`, `rules:*`).
+  *Built:* `POST /api/tokens {name, canvases: ["dnd-*"], memory: ["dnd:*", "rules:*"]}`, also in Settings → API tokens.
+  - Such a token only reaches the canvas, run, memory, files and `/v1` routes; everything else answers 403.
+  - It only sees and installs matching canvases, never runs an ad-hoc graph, and a block using another memory key fails with a clear message.
+  - It can't make new tokens.
 - **"Tabletop" template set** in `web/src/canvas/templates.ts` with the DungeonMind canvases (below), so people can see and tweak them.
+  *Built:* `dnd-setup`, `dnd-adjudicate`, `dnd-narrate`, `dnd-chronicle`, `dnd-ask`, `dnd-sheet`, `dnd-portrait` and `dnd-sim`.
 
 ## Implementation order (M0)
 
@@ -226,7 +238,7 @@ DungeonMind shows what's missing and refuses to start a game until the required 
 9. §2 history passthrough
 10. §10 nice to have
 
-Each step is one commit with its tests, CI green, then deploy to Unraid (template `my-hivemind.xml` + rebuild_container).
+Each step is one commit with its tests and CI green.
 
 ## How to test with curl
 
@@ -304,22 +316,22 @@ Every prompt gets `{{vars.campaign}}`, `{{vars.party}}`, `{{vars.recent}}` and `
 - **Compare runs:** the same seeded scenarios run on several models, so the comparison is fair. Candidates are picked from what is installed. Suggested ones to try: Qwen 8B/14B, Gemma 12B, Mistral Small / Cydonia 24B, gpt-oss 20B.
 - The winner becomes the default model in the DungeonMind canvases, with a "Set as DungeonMind default" button.
 
-## L3 — Local fine-tune (Unraid T4)
+## L3 — Local fine-tune (own GPU)
 
 - **Unsloth Docker container** (`unsloth/unsloth`) as a separate Unraid template. HiveMind starts the job over its API, or through `docker exec` from a small helper script on Unraid.
-- **QLoRA SFT** on the L1 dataset: T4 = fp16, 4-bit load. 7–9B fits comfortably, and 12–14B is tight.
+- **QLoRA SFT** on the L1 dataset: on a 16 GB card such as a Tesla T4: fp16, 4-bit load. 7–9B fits comfortably, and 12–14B is tight.
 - **GPU:** HiveMind takes the GPU host lock for the whole job and unloads Ollama and ComfyUI first, using the existing `freeGpu`. The UI shows "Training — local AI paused".
 - **Output:** a LoRA → merge → **GGUF** (q4_k_m and q8_0) → `ollama create dungeonmind-dm:<version>` from a Modelfile. The new model shows up in HiveMind and on the scoreboard straight away.
 
 ## L4 — Hugging Face training + publishing
 
-- **Settings → Hugging Face:** the token is stored encrypted like other provider keys, and there's a **daily GPU-minutes limit**. The default is 40 min/day, matching his plan, and a usage bar shows today's minutes.
+- **Settings → Hugging Face:** the token is stored encrypted like other provider keys, and there's a **daily GPU-minutes limit**. The default is 40 min/day, and a usage bar shows today's minutes.
 - Before **every** job, HiveMind shows the estimated minutes and cost, and the user must confirm.
 - ⚠️ **Check first:** HF Pro's daily minutes are **ZeroGPU quota for Spaces**, while **HF Jobs** (`hf jobs uv run` with a TRL/Unsloth script) are billed per use. Find out which one fits:
   - (a) HF Jobs within the budget;
   - (b) a private ZeroGPU Space that trains in short chunks with checkpoints pushed to the Hub;
-  - (c) fall back to L3 on the T4.
-- **Publish:** the merged GGUF goes **public** to his HF account (e.g. `turkushan490/dungeonmind-dm-8b-gguf`). It gets a model card (base model, dataset description, scores from L2, license) and is pulled with `ollama pull hf.co/turkushan490/…`. DungeonMind's setup offers this as a one-click model download.
+  - (c) fall back to L3 on the local GPU.
+- **Publish:** the merged GGUF goes **public** to the configured HF account (e.g. `turkushan490/dungeonmind-dm-8b-gguf`). It gets a model card (base model, dataset description, scores from L2, license) and is pulled with `ollama pull hf.co/turkushan490/…`. DungeonMind's setup offers this as a one-click model download.
 - **Base model licenses:** only use base models whose license allows publishing fine-tunes (Apache-2.0/MIT, e.g. Qwen, Mistral). Record the license in the model card.
 
 ## Lab order
@@ -331,3 +343,36 @@ L1 can start **right after M0 §1, §3, §5 and §6**, because it needs vars, JS
 - **Unit tests:** the mini bookkeeper's counter math, the judge verdict parser, JSONL export format, and that the GPU lock lets a real run in between two sim turns.
 - **A 10-turn sim** with a fake provider must produce 10 `lab_turns` and a valid JSONL.
 - **On Unraid:** run the sim for 1 hour on a real model, check that the scoreboard numbers look sane, and check that a HiveMind run started by hand during the sim still goes first.
+
+## Built: L1–L2 notes
+
+- Code: `server/src/lab/`:
+  - `state.ts`: the bookkeeper;
+  - `sim.ts`: personas, seeded scenarios and dice, the dnd-sim graph;
+  - `judge.ts`: Jev fast pass, LLM judge, verdict parser;
+  - `runner.ts`: background runner;
+  - `data.ts`: JSONL and scoreboard.
+- API: `server/src/api/lab.ts`. UI: `web/src/lab/LabPage.tsx`. Guide: [lab.md](lab.md).
+- Migration 11 adds `lab_runs` and `lab_turns`. Each turn keeps:
+  - `input`, `output`;
+  - `verdict` (LLM judge plus bookkeeper findings) and `jev_verdict`;
+  - `error_types[]` (`json`, `roll`, `resource`, `number`, `contradiction`);
+  - `story_score`, `jev_story`;
+  - `model`, `prompt_version`, `tokens_per_s`, `ms`;
+  - `corrected`, `review`.
+- Every sim call (players, DM, judge, Jev) goes through the engine or the host lock one call at a time. A run that
+  is waiting for the GPU goes before the sim's next call. A test proves it.
+- The "compare runs" option: give several DM models. Game *n* of every model uses the same seed (same scenario,
+  party and dice).
+- Not built: adding real DungeonMind games to the dataset (opt-in per game). That needs DungeonMind first.
+
+## TODO: L3–L4 (not built)
+
+Out of scope for milestone 7; left for a later milestone:
+
+- **L3:** an Unsloth container template, starting a QLoRA job from HiveMind with the GPU lock held for the whole
+  job ("Training — local AI paused"), then LoRA → GGUF → `ollama create dungeonmind-dm:<version>`.
+- **L4:** Settings → Hugging Face (encrypted token, daily GPU-minute limit with a usage bar, confirm the estimate
+  before every job). First check HF Jobs against ZeroGPU Spaces, then publish the GGUF with a model card. Only
+  use Apache-2.0 / MIT base models.
+

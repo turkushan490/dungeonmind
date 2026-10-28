@@ -5,3 +5,6 @@ dist
 *.log
 .env
 web/public/assets/dice-box
+
+# server-specific Unraid templates stay local
+templates-user/
