@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useMe } from '../me';
 import { toast } from '../notify';
 import { VoiceSettings } from './VoiceSettings';
+import { changeServer, isNative } from '../native';
 
 interface ModelRef {
   providerId: string;
@@ -303,6 +304,14 @@ export function SettingsPage() {
   const me = useMe();
   return (
     <div className="space-y-4">
+      {isNative() && (
+        <section className="card flex items-center gap-2">
+          <span className="text-sm text-slate-300">Connected to {location.host}</span>
+          <button className="btn-ghost ml-auto" onClick={changeServer}>
+            Change server
+          </button>
+        </section>
+      )}
       <Reading />
       <VoiceSettings />
       {me.role === 'admin' && <HiveMindSettings />}

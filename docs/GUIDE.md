@@ -175,3 +175,7 @@ Every turn runs on the server, step by step, and every step is in the story log:
 ## 14. Phones
 
 The whole app works on a phone: the table's three panes become swipeable tabs (Sheet · Board · Story), inputs don't zoom on iOS, the bottom respects the home-indicator area, and **Add to Home Screen** installs it like an app (web manifest). The Android app (below) wraps the same pages.
+
+## 15. Android
+
+The Android app is a Capacitor shell in [`android/`](../android) (see its README). GitHub Actions builds the APK on changes and attaches it to releases on `v*` tags. Install it, enter your server address once, and log in on your server's own login page (both auth modes). It shows the same app with a bottom tab bar; Settings → Change server switches servers. There are no push notifications; invites and notices appear in the app.

@@ -16,6 +16,7 @@ import { NewAdventure } from './pages/NewAdventure';
 import { CharacterLibrary, CharacterView, NewCharacter } from './pages/Characters';
 import { match, navigate, usePath } from './router';
 import { closeSocket, getSocket } from './socket';
+import { isNative } from './native';
 
 const NAV: [string, string][] = [
   ['/', 'Lobby'],
@@ -36,6 +37,10 @@ export function App() {
   };
   useEffect(() => {
     load();
+  }, []);
+
+  useEffect(() => {
+    if (isNative()) document.documentElement.dataset.native = '1';
   }, []);
 
   // Readability prefs live on <html> so every story text picks them up.
@@ -81,14 +86,14 @@ export function App() {
 
   return (
     <MeContext.Provider value={me}>
-      <div className={`mx-auto ${table ? 'max-w-none' : 'max-w-7xl p-3 sm:p-4'}`}>
+      <div className={`mx-auto ${table ? 'max-w-none' : 'dm-page max-w-7xl p-3 sm:p-4'}`}>
         {!table && (
           <header className="mb-4 flex flex-wrap items-center gap-2">
             <button onClick={() => navigate('/')} className="flex items-center gap-2">
               <img src="/icon.svg" className="h-8 w-8" alt="" />
               <span className="font-serif text-xl font-semibold tracking-wide text-indigo-100">DungeonMind</span>
             </button>
-            <nav className="order-last flex w-full gap-1 overflow-x-auto sm:order-none sm:ml-4 sm:w-auto">
+            <nav className="dm-topnav order-last flex w-full gap-1 overflow-x-auto sm:order-none sm:ml-4 sm:w-auto">
               {NAV.map(([to, label]) => (
                 <button
                   key={to}
@@ -121,6 +126,15 @@ export function App() {
         {charView && charView.id !== 'new' && <CharacterView id={charView.id} />}
         {charEdit && <CharacterView id={charEdit.id} edit />}
       </div>
+      {!table && isNative() && (
+        <nav className="dm-bottomnav fixed inset-x-0 bottom-0 z-30 flex border-t border-[#30363d] bg-[#161b22]">
+          {NAV.map(([to, label]) => (
+            <button key={to} onClick={() => navigate(to)} className={`flex-1 py-3 text-xs ${(to === '/' ? path === '/' : path.startsWith(to)) ? 'text-indigo-300' : 'text-slate-400'}`}>
+              {label}
+            </button>
+          ))}
+        </nav>
+      )}
       <Toasts />
     </MeContext.Provider>
   );

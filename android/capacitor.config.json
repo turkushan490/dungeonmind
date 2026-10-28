@@ -1,0 +1,19 @@
+{
+  "appId": "com.turkushan.dungeonmind",
+  "appName": "DungeonMind",
+  "webDir": "www",
+  "appendUserAgent": "DungeonMindAndroid/0.1",
+  "backgroundColor": "#0d1117",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": ["*"]
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true
+  },
+  "plugins": {
+    "CapacitorHttp": { "enabled": true }
+  }
+}

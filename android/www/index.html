@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d1117" />
+    <title>DungeonMind</title>
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #0d1117; color: #e2e8f0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); }
+      .card { width: 100%; max-width: 380px; background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; }
+      h1 { font-family: "Iowan Old Style", Palatino, Georgia, serif; font-weight: 600; color: #e0e7ff; text-align: center; margin: 8px 0 4px; letter-spacing: .02em; }
+      .rule { height: 1px; margin: 10px auto 16px; width: 60%; background: linear-gradient(90deg, transparent, #6366f1, #a5b4fc, #6366f1, transparent); opacity: .6; }
+      p { color: #94a3b8; font-size: 14px; line-height: 1.5; }
+      label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; margin-bottom: 6px; }
+      input { width: 100%; font-size: 16px; padding: 10px 12px; border-radius: 8px; border: 1px solid #30363d; background: #0d1117; color: #e2e8f0; outline: none; }
+      input:focus { border-color: #6366f1; }
+      button { width: 100%; margin-top: 12px; padding: 11px; border: 0; border-radius: 8px; font-size: 15px; font-weight: 600; color: #fff; background: #6366f1; }
+      button:disabled { opacity: .5; }
+      .recent button { background: transparent; border: 1px solid #30363d; color: #cbd5e1; font-weight: 400; text-align: left; margin-top: 8px; }
+      .err { color: #fca5a5; font-size: 14px; min-height: 1.2em; }
+      img { display: block; margin: 0 auto; width: 64px; height: 64px; }
+    </style>
+  </head>
+  <body>
+    <form class="card" id="f">
+      <img src="icon.svg" alt="" />
+      <h1>DungeonMind</h1>
+      <div class="rule"></div>
+      <p>Connect to your DungeonMind server. You log in on the server's own page (both account modes work).</p>
+      <label for="url">Server address</label>
+      <input id="url" type="url" inputmode="url" autocomplete="url" placeholder="https://dm.example.com" required />
+      <div class="err" id="err"></div>
+      <button id="go">Connect</button>
+      <div class="recent" id="recent"></div>
+      <p style="font-size: 11px; margin-top: 16px">Free software (AGPL-3.0). Rules content from the SRD 5.1/5.2 (CC-BY-4.0). For adults (18+).</p>
+    </form>
+    <script>
+      const KEY = 'dm-server';
+      const RECENT = 'dm-recent';
+      const $ = (id) => document.getElementById(id);
+      const recent = () => JSON.parse(localStorage.getItem(RECENT) || '[]');
+      const clean = (u) => {
+        u = u.trim().replace(/\/+$/, '');
+        if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+        return u;
+      };
+      async function connect(u) {
+        $('err').textContent = '';
+        $('go').disabled = true;
+        $('go').textContent = 'Connecting…';
+        try {
+          // CapacitorHttp makes this a native request, so the server needs no CORS setup.
+          const r = await fetch(u + '/api/health', { cache: 'no-store' });
+          const h = await r.json();
+          if (h.app !== 'dungeonmind') throw new Error('That address is not a DungeonMind server');
+          localStorage.setItem(KEY, u);
+          localStorage.setItem(RECENT, JSON.stringify([u, ...recent().filter((x) => x !== u)].slice(0, 5)));
+          location.href = u + '/';
+        } catch (e) {
+          $('err').textContent = "Can't reach " + u + ': ' + (e.message || e);
+          $('go').disabled = false;
+          $('go').textContent = 'Connect';
+        }
+      }
+      $('f').addEventListener('submit', (e) => {
+        e.preventDefault();
+        connect(clean($('url').value));
+      });
+      for (const u of recent()) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = u;
+        b.onclick = () => connect(u);
+        $('recent').appendChild(b);
+      }
+      const saved = localStorage.getItem(KEY);
+      const change = new URLSearchParams(location.search).has('change');
+      if (saved) $('url').value = saved;
+      if (saved && !change) connect(saved);
+    </script>
+  </body>
+</html>

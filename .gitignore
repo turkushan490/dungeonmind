@@ -4,6 +4,4 @@ dist
 /server/data-dev
 *.log
 .env
-android/app/build
-android/.gradle
 web/public/assets/dice-box

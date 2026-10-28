@@ -118,3 +118,10 @@ html[data-dyslexia='1'] .story, html[data-dyslexia='1'] .readable { font-family:
 }
 .dm-safe-bottom { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
 button, a { -webkit-tap-highlight-color: transparent; }
+
+/* ---- M12: the Android app (Capacitor WebView) ---- */
+html[data-native='1'] .dm-topnav { display: none; }
+html[data-native='1'] .dm-page { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom)); }
+html[data-native='1'] .dm-bottomnav { padding-bottom: env(safe-area-inset-bottom); }
+html[data-native='1'] body { -webkit-user-select: none; user-select: none; }
+html[data-native='1'] .story, html[data-native='1'] input, html[data-native='1'] textarea { -webkit-user-select: text; user-select: text; }
