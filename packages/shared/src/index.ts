@@ -22,3 +22,4 @@ export interface PresenceUser {
   where: string;
 }
 export * from './rules';
+export * from './character';

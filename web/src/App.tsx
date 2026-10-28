@@ -7,11 +7,13 @@ import { AgeGate } from './pages/AgeGate';
 import { Lobby } from './pages/Lobby';
 import { Login } from './pages/Login';
 import { SettingsPage } from './pages/Settings';
+import { CharacterLibrary, CharacterView, NewCharacter } from './pages/Characters';
 import { match, navigate, usePath } from './router';
 import { closeSocket, getSocket } from './socket';
 
 const NAV: [string, string][] = [
   ['/', 'Lobby'],
+  ['/characters', 'Characters'],
   ['/settings', 'Settings'],
 ];
 
@@ -64,6 +66,8 @@ export function App() {
   };
 
   const table = match('/table/:id', path);
+  const charView = match('/characters/:id', path);
+  const charEdit = match('/characters/:id/edit', path);
 
   return (
     <MeContext.Provider value={me}>
@@ -96,6 +100,10 @@ export function App() {
         )}
         {path === '/' && <Lobby />}
         {path === '/settings' && <SettingsPage />}
+        {path === '/characters' && <CharacterLibrary />}
+        {path === '/characters/new' && <NewCharacter />}
+        {charView && charView.id !== 'new' && <CharacterView id={charView.id} />}
+        {charEdit && <CharacterView id={charEdit.id} edit />}
       </div>
       <Toasts />
     </MeContext.Provider>

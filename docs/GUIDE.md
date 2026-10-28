@@ -68,3 +68,11 @@ More context means more VRAM: roughly +1 GB per 8K tokens for an 8B model, +2 GB
 The rules live in `server/data/srd51/rules.json` and `server/data/srd52/rules.json`, imported from the [5e-bits 5e-database](https://github.com/5e-bits/5e-database) (the data behind the 5e-srd-api) with `scripts/import-srd.mjs`. Licensed CC-BY-4.0 (Wizards of the Coast); attribution is in the app footer and the README.
 
 **2024 completeness check (M2):** the 5e-database has every 2024 class (with levels and slots), species, background, feat, spell, item, monster and condition, but **no rule sections** (combat, resting, concentration…). Those 29 sections are filled from the SRD 5.2 text in `scripts/srd52-gaps.json`. The 2024 data also has fewer feature descriptions (232 vs 407), which the builder doesn't need.
+
+## 6. Characters
+
+Every player has a **character library** (Characters tab). Characters are copied into a game when they join it (same ruleset), so the library copy stays clean.
+
+- **Builder:** step by step: ruleset, species, class (+ subclass at the right level), background, ability scores (standard array, 27-point buy, or 4d6-drop-lowest rolled **by the server**), skills, spells, equipment and story. The server checks every rule live (skill lists and counts, point-buy cost, background/species bonuses, ASIs, spell lists, cantrip/known/prepared counts, slot levels) and shows the derived sheet (HP, AC, saves, spell DC, resource counters).
+- **AI builds the sheet:** describe the character; HiveMind's `dnd-sheet` canvas returns a sheet, DungeonMind validates it and gives the AI one chance to fix illegal parts, then it opens in the builder as a draft.
+- **Import:** a DungeonMind export (`.dungeonmind.json`), any JSON sheet with common field names (race/species, class, stats/abilities, skills, spells…), or pasted text (read by the AI).
