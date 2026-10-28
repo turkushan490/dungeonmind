@@ -1,0 +1,8 @@
+node_modules
+dist
+/data
+/server/data-dev
+*.log
+.env
+android/app/build
+android/.gradle

@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --color-parchment: #e8dcc0;
+  --color-rune: #a5b4fc;
+  --color-blood: #b91c1c;
+  --color-gold: #d4af37;
+}
+
+html {
+  color-scheme: dark;
+}
+body {
+  overscroll-behavior-y: none;
+}
+
+@layer components {
+  .card {
+    @apply rounded-lg border border-[#30363d] bg-[#161b22] p-4;
+  }
+  .input {
+    @apply w-full rounded-md border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm outline-none focus:border-indigo-500;
+  }
+  .btn {
+    @apply rounded-md bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400 disabled:opacity-50;
+  }
+  .btn-ghost {
+    @apply rounded-md border border-[#30363d] px-3 py-1.5 text-sm hover:bg-[#21262d] disabled:opacity-50;
+  }
+  .btn-danger {
+    @apply rounded-md border border-red-800 px-3 py-1.5 text-sm text-red-300 hover:bg-red-950 disabled:opacity-50;
+  }
+  .label {
+    @apply mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border border-[#30363d] bg-[#0d1117] px-2 py-0.5 text-xs;
+  }
+  /* Fantasy accents: a rune-lined heading and parchment story text. */
+  .rune-title {
+    @apply font-serif text-lg font-semibold tracking-wide text-indigo-200;
+    text-shadow: 0 0 12px rgba(129, 140, 248, 0.35);
+  }
+  .rune-rule {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #6366f1 20%, #a5b4fc 50%, #6366f1 80%, transparent);
+    opacity: 0.6;
+  }
+  .story {
+    @apply font-serif leading-relaxed text-[#e8dcc0];
+  }
+}
+
+/* Readability prefs (Settings → Reading) set these on <html>. */
+html[data-font-size='lg'] .story { font-size: 1.125rem; }
+html[data-font-size='xl'] .story { font-size: 1.3rem; }
+html[data-line='loose'] .story { line-height: 2; }
+html[data-dyslexia='1'] .story, html[data-dyslexia='1'] .readable { font-family: "OpenDyslexic", "Comic Sans MS", "Lexend", sans-serif; letter-spacing: 0.02em; }
+
+@keyframes dm-breathe { 50% { opacity: 0.55; } }
+.dm-breathe { animation: dm-breathe 2.4s ease-in-out infinite; }
+@keyframes dm-pop { from { opacity: 0; transform: scale(0.9); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+.dm-pop { animation: dm-pop 0.45s ease-out; }
+
+/* Markdown (campaign.md, guides) */
+.dm-md > * + * { margin-top: 0.6em; }
+.dm-md h1, .dm-md h2, .dm-md h3 { font-family: var(--font-serif); font-weight: 600; color: #e0e7ff; }
+.dm-md h1 { font-size: 1.35rem; } .dm-md h2 { font-size: 1.15rem; } .dm-md h3 { font-size: 1rem; }
+.dm-md ul { list-style: disc; padding-left: 1.3em; } .dm-md ol { list-style: decimal; padding-left: 1.3em; }
+.dm-md a { color: #a5b4fc; text-decoration: underline; }
+.dm-md code { background: #21262d; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.85em; }
+.dm-md pre { background: #0d1117; border: 1px solid #30363d; padding: 0.75em; border-radius: 8px; overflow-x: auto; }
+.dm-md table { border-collapse: collapse; } .dm-md th, .dm-md td { border: 1px solid #30363d; padding: 0.3em 0.6em; }
+.dm-md blockquote { border-left: 3px solid #6366f1; padding-left: 0.8em; color: #94a3b8; }
+.dm-md img { max-width: 100%; border-radius: 8px; }
+
+.scroll-thin { scrollbar-width: thin; scrollbar-color: #30363d transparent; }
