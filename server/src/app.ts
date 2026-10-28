@@ -6,6 +6,7 @@ import { characterRoutes } from './api/characters.js';
 import { gameRoutes } from './api/games.js';
 import { hivemindRoutes } from './api/hivemind.js';
 import { rulesRoutes } from './api/rules.js';
+import { tableRoutes } from './api/table.js';
 import { authRoutes } from './auth/index.js';
 import { config } from './config.js';
 import { attachRealtime, presenceList } from './realtime.js';
@@ -42,6 +43,7 @@ export async function buildApp(opts: { logger?: boolean; web?: boolean; realtime
   hivemindRoutes(app);
   characterRoutes(app);
   gameRoutes(app);
+  tableRoutes(app);
 
   if (opts.realtime !== false) attachRealtime(app);
 

@@ -1,4 +1,4 @@
-import type { Character } from './character';
+import type { Character, Derived } from './character';
 import type { Ruleset } from './rules';
 
 export type GameStatus = 'setup' | 'playing' | 'paused' | 'ended';
@@ -218,5 +218,7 @@ export interface GameDetail {
   members: GameMember[];
   characters: GameCharacter[];
   state: GameState;
+  /** Server-derived numbers per game character id (AC, saves, spell DC…). */
+  derived: Record<string, Derived>;
   myRole: 'host' | 'player' | 'invited' | 'spectator';
 }

@@ -85,6 +85,38 @@ const MIGRATIONS = [
   );
   CREATE INDEX game_characters_game ON game_characters(game_id);
   `,
+  // M5: the story log, campaign.md versions, per-turn snapshots (rerolls, rollback)
+  `
+  CREATE TABLE game_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+    turn INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    actor TEXT,
+    text TEXT NOT NULL,
+    data TEXT,
+    hidden INTEGER NOT NULL DEFAULT 0,
+    at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX game_log_game ON game_log(game_id, id);
+  CREATE TABLE campaign_versions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+    md TEXT NOT NULL,
+    author TEXT NOT NULL,
+    turn INTEGER NOT NULL DEFAULT 0,
+    at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX campaign_versions_game ON campaign_versions(game_id, id);
+  CREATE TABLE turn_snapshots (
+    game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+    turn INTEGER NOT NULL,
+    state TEXT NOT NULL,
+    characters TEXT NOT NULL,
+    log_from INTEGER NOT NULL,
+    PRIMARY KEY (game_id, turn)
+  );
+  `,
 ];
 
 export const db = new DatabaseSync(join(config.dataDir, 'dungeonmind.db'));

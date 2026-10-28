@@ -1,8 +1,10 @@
 import { buildApp } from './app.js';
 import { config } from './config.js';
+import { recoverInterrupted } from './game/turn.js';
 
 process.on('unhandledRejection', (err) => console.error('Unhandled rejection:', err));
 
+recoverInterrupted();
 const app = await buildApp();
 
 // Clean stop (docker stop, Unraid update): Node as PID 1 ignores SIGTERM unless handled.

@@ -8,6 +8,7 @@ import { Lobby } from './pages/Lobby';
 import { Login } from './pages/Login';
 import { SettingsPage } from './pages/Settings';
 import { GameSetup } from './pages/GameSetup';
+import { Table } from './table/Table';
 import { NewAdventure } from './pages/NewAdventure';
 import { CharacterLibrary, CharacterView, NewCharacter } from './pages/Characters';
 import { match, navigate, usePath } from './router';
@@ -103,6 +104,7 @@ export function App() {
         )}
         {path === '/' && <Lobby />}
         {path === '/settings' && <SettingsPage />}
+        {table && <Table id={table.id} />}
         {path === '/adventures/new' && <NewAdventure />}
         {gameSetup && <GameSetup id={gameSetup.id} />}
         {path === '/characters' && <CharacterLibrary />}

@@ -87,3 +87,17 @@ Every logged-in user can create adventures (**Lobby → New adventure**). A play
 4. **The setup form:** for the chosen pitch the DM builds a form specific to that adventure (dropdowns, sliders, text). Your answers go into the campaign file.
 5. **Invite** players by username. They see the invite in their lobby (live), accept, and bring a character from their library (same ruleset, at the start level; it's re-checked for legality and copied into the game).
 6. **Spectators:** running public games show up in everyone's **Spectate** list (read only).
+
+## 8. Playing
+
+- **The table:** your sheet on the left (tabs for the rest of the party), the zone board in the middle (scene image, positions and ranges, dice tray), the story log on the right with the choice boxes at the bottom. On a phone the three panes are swipeable tabs.
+- **Turns:** every seated player picks one of 4 choices or writes their own ("Other"). The DM always waits for everyone; there's no timer. In combat the actions go in initiative order.
+- **Ask the DM:** an out-of-turn question (rules, what your character knows). It never moves the story and never blocks the turn.
+- **Robustness:** a HiveMind crash, timeout or invalid output is retried automatically (3 tries, no reroll used). If it still fails, the turn stays exactly as it was and anyone at the table can press **Retry**. A server restart mid-turn does the same.
+- **The DM queue:** DungeonMind keeps its own queue in front of HiveMind; at most *N* tables think at once (admin setting `maxThinking`, default 2). Waiting tables see "The DM is thinking… (#2 in queue)".
+- **Absent players:** the host can **pause** or **end** the game, or **skip** an absent player: the character stays quietly with the group until the player is back.
+- **Save / resume:** every turn is saved in SQLite. Games can be paused and resumed any time; **Campaign → Download save** gives the campaign file plus the whole story as Markdown.
+
+### The campaign file (campaign.md)
+
+Each game has a living `campaign.md` with fixed sections: How to run · Story so far · Current scene · Party status · NPCs · Locations · Quests and open threads · Loot and items · Rulings made · Timeline. The **Chronicler** (`dnd-chronicle`) updates it after every turn with section patches (it can't rewrite things away, and it can't touch the party table, which the server generates from the database). At a scene end it compresses "Story so far". Everyone in the game can read it; the host can edit it; every version is kept. Every DM prompt gets the full file, the rules found by memory search, and the last turns verbatim.

@@ -2,6 +2,8 @@ import type { GameCharacter, GameDetail, GameMember, GameSettings, GameState, Ga
 import type { User } from '../auth/index.js';
 import { db, json } from '../db.js';
 import { emitToGame, isOnline } from '../realtime.js';
+import { rules } from '../rules/index.js';
+import { derive } from './character.js';
 
 export interface GameRow {
   id: string;
@@ -99,7 +101,10 @@ export function roleIn(g: GameRow, user: User): GameRole | undefined {
   return undefined;
 }
 
+export const derivedOf = (g: GameRow, chars: GameCharacter[]) => Object.fromEntries(chars.map((c) => [c.id, derive(rules(g.ruleset), c)]));
+
 export function detail(g: GameRow, role: GameRole): GameDetail {
+  const characters = gameCharacters(g.id);
   return {
     id: g.id,
     name: g.name,
@@ -109,15 +114,17 @@ export function detail(g: GameRow, role: GameRole): GameDetail {
     hostId: g.hostId,
     settings: g.settings,
     members: members(g.id),
-    characters: gameCharacters(g.id),
+    characters,
     state: g.state,
+    derived: derivedOf(g, characters),
     myRole: role,
   };
 }
 
 /** Everyone at the table (and spectators) gets the new state. */
 export function broadcast(g: GameRow) {
-  emitToGame(g.id, 'game:update', { id: g.id, status: g.status, state: g.state, characters: gameCharacters(g.id), members: members(g.id), settings: g.settings, name: g.name, visibility: g.visibility });
+  const characters = gameCharacters(g.id);
+  emitToGame(g.id, 'game:update', { id: g.id, status: g.status, state: g.state, characters, derived: derivedOf(g, characters), members: members(g.id), settings: g.settings, name: g.name, visibility: g.visibility });
 }
 
 export function summaries(where: string, ...args: (string | number)[]): GameSummary[] {
