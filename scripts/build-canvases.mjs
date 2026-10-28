@@ -56,7 +56,7 @@ If the stage is "form": design a setup form for THIS adventure: the questions th
         json: true,
         numCtx: 16384,
         temperature: 0.2,
-        jsonSchema: `{"rolls":[{"id":string,"actor":string,"kind":"attack"|"save"|"check"|"damage"|"heal","ability"?:"str"|"dex"|"con"|"int"|"wis"|"cha","skill"?:string,"dc"?:number,"target"?:string,"targetAc"?:number,"adv"?:"adv"|"dis"|"none","dice"?:string,"bonus"?:number,"damageType"?:string,"weapon"?:string,"spell"?:string,"onHit"?:string,"onFail"?:string,"reason":string}],
+        jsonSchema: `{"rolls":[{"id":string,"actor":string,"kind":"attack"|"save"|"check"|"damage"|"heal","ability"?:"str"|"dex"|"con"|"int"|"wis"|"cha","skill"?:string,"dc"?:number,"target"?:string,"targetAc"?:number,"adv"?:"adv"|"dis"|"none","dice"?:string,"bonus"?:number,"damageType"?:string,"weapon"?:string,"spell"?:string,"onHit"?:string,"onFail"?:string,"half"?:boolean,"reason":string}],
 "resources":[{"pc":string,"name":string,"amount":number}],
 "refused":[{"pc":string,"reason":string}],
 "notes"?:string}`,
@@ -64,7 +64,8 @@ If the stage is "form": design a setup form for THIS adventure: the questions th
 Rules:
 - One entry per roll. "actor" is the exact name of who rolls (a player character or an NPC/monster).
 - Attacks: kind "attack" with "target" and "targetAc" (the NPC's AC from the party state/campaign; guess sensibly if unknown). Follow with a "damage" roll whose "onHit" is the attack's id.
-- Saving throws forced by a PC's spell: kind "save", actor = the target, "ability", "dc" = the caster's spell save DC from the party state. Damage on a failed save: "onFail" = the save's id.
+- Saving throws forced by a PC's spell: kind "save", actor = the target, "ability", "spell", "dc" = the caster's spell save DC from the party state. Damage on a failed save: "onFail" = the save's id, with "half": true when a made save still takes half (e.g. Fireball).
+- A creature at 0 HP makes no attacks. Monsters attack too: give their rolls with the stat block's bonus.
 - Skill checks: kind "check" with "skill" (e.g. "stealth") or "ability", and a "dc".
 - For player characters NEVER give "bonus": the server computes modifiers from the sheet. For NPCs give "bonus".
 - "dice" for damage/heal like "2d6+3" or "8d6". Use the weapon or spell's real dice.
@@ -132,7 +133,7 @@ ${PARTY_CONTEXT}
 "sceneEnd":boolean,
 "summary":string}`,
         system: `You turn the Dungeon Master's narration into the game state change, as JSON. ${NUMBERS}
-- "deltas": only changes the narration and the dice results caused. Damage from the results is negative hp. Healing positive. Spent items/ammo/gold. Conditions applied or ended ("rounds" = how long, omit for until removed). Do NOT include spell slots or features spent by the declared actions: the server already spent those.
+- "deltas": only changes the narration and the dice results caused. "hp" must equal the damage (negative) or healing (positive) in the dice results; HP changes without a roll are held for the host. Spent items/ammo/gold. Conditions applied or ended ("rounds" = how long, omit for until removed). Do NOT include spell slots or features spent by the declared actions: the server already spent those.
 - "xp": award XP for defeated foes, solved problems and milestones, only when earned in this turn.
 - "npcs": every NPC/monster that matters now, with its current hp/maxHp/ac when known (use the SRD stat block values for monsters), status changes included.
 - "combat": {"start":true,"enemies":[names]} when a fight begins, {"end":true} when it ends, else null.

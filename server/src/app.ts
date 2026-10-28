@@ -2,12 +2,14 @@ import cookie from '@fastify/cookie';
 import staticFiles from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { existsSync } from 'node:fs';
+import { bookkeepingRoutes } from './api/bookkeeping.js';
 import { characterRoutes } from './api/characters.js';
 import { gameRoutes } from './api/games.js';
 import { hivemindRoutes } from './api/hivemind.js';
 import { rulesRoutes } from './api/rules.js';
 import { tableRoutes } from './api/table.js';
 import { authRoutes } from './auth/index.js';
+import { registerEngine } from './game/engine.js';
 import { config } from './config.js';
 import { attachRealtime, presenceList } from './realtime.js';
 import { requireUser } from './auth/index.js';
@@ -38,12 +40,14 @@ export async function buildApp(opts: { logger?: boolean; web?: boolean; realtime
   app.get('/api/health', async () => ({ ok: true, app: 'dungeonmind', version: VERSION, authMode: config.authMode }));
   app.get('/api/presence', { preHandler: requireUser }, async () => presenceList());
 
+  registerEngine();
   authRoutes(app);
   rulesRoutes(app);
   hivemindRoutes(app);
   characterRoutes(app);
   gameRoutes(app);
   tableRoutes(app);
+  bookkeepingRoutes(app);
 
   if (opts.realtime !== false) attachRealtime(app);
 

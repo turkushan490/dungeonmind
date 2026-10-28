@@ -145,6 +145,10 @@ export interface PendingRoll {
   onHit?: string;
   onFail?: string;
   crit?: boolean;
+  /** Damage after a successful save: half. */
+  half?: boolean;
+  /** The server rolls this one itself (NPCs, away players). */
+  auto?: boolean;
   reason?: string;
   result?: RollOutcome;
 }
@@ -178,6 +182,8 @@ export interface GameState {
   choices: Record<string, string[]>;
   actions: Record<string, DeclaredAction>;
   rolls: PendingRoll[];
+  /** The adjudicator already ran for this turn's actions (rolls are fixed from here on). */
+  adjudicated?: boolean;
   /** Resources spent this turn (refunded on a refused action). */
   spent: { characterId: string; name: string; amount: number }[];
   refused: { characterId: string; reason: string }[];

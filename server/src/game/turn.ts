@@ -50,9 +50,9 @@ export const settled = (gameId: string) => locks.get(gameId) ?? Promise.resolve(
 export const playersOf = (gameId: string) => Object.fromEntries(members(gameId).map((m) => [m.userId, m.username]));
 
 /** Characters whose action the turn waits for. */
-export const activeCharacters = (chars: GameCharacter[]) => chars.filter((c) => c.seated && !c.absent && !c.conditions.some((x) => x.name === 'dead'));
+export const activeCharacters = (chars: GameCharacter[]) => chars.filter((c) => c.seated && !c.absent && c.hp > 0 && !c.conditions.some((x) => x.name === 'dead'));
 
-function setPhase(g: GameRow, phase: GameState['phase'], extra: Partial<GameState> = {}) {
+export function setPhase(g: GameRow, phase: GameState['phase'], extra: Partial<GameState> = {}) {
   g.state = { ...g.state, phase, ...extra };
   if (phase !== 'error') delete g.state.error;
   saveGame(g);
@@ -60,7 +60,7 @@ function setPhase(g: GameRow, phase: GameState['phase'], extra: Partial<GameStat
 }
 
 /** Every DM call goes through the queue, retries on failure, and streams narration to the table. */
-async function dm(g: GameRow, canvasId: string, question: string, vars: Record<string, string>, stream = false): Promise<RunResult> {
+export async function dm(g: GameRow, canvasId: string, question: string, vars: Record<string, string>, stream = false): Promise<RunResult> {
   return think(
     g.id,
     () =>
@@ -267,8 +267,8 @@ export async function finishNarration(gameId: string, r: RunResult, results: str
   tx(() => {
     const chars = gameCharacters(g.id);
     snapshot(g, chars);
-    for (const a of orderedActions(g, chars)) addLog(g.id, g.state.turn, 'action', a.text, chars.find((c) => c.id === a.characterId)?.name);
     logId = addLog(g.id, g.state.turn, 'narration', narration, 'DM', { speakers: state.speakers ?? [], results: json(results, []) }).id;
+    if (Array.isArray(state.npcs)) g.state.npcs = mergeNpcs(g.state.npcs, state.npcs, new Set(g.state.rolls.filter((r) => (r.kind === 'damage' || r.kind === 'heal') && r.result && !r.result.skipped && r.target).map((r) => r.target!)));
     for (const h of hooks) h.applyState?.(g, chars, state, results);
     // Choices: 4 per character, keyed by id.
     g.state.choices = {};
@@ -277,12 +277,12 @@ export async function finishNarration(gameId: string, r: RunResult, results: str
       const list = key ? (state.choices![key] as unknown[]) : [];
       g.state.choices[c.id] = (Array.isArray(list) ? list : []).map((x) => clip(String(x), 200)).filter(Boolean).slice(0, 4);
     }
-    if (Array.isArray(state.npcs)) g.state.npcs = mergeNpcs(g.state.npcs, state.npcs);
     g.state.speakers = Array.isArray(state.speakers) ? state.speakers.slice(0, 12) : [];
     for (const c of chars) saveGameCharacter(g.id, c);
     g.state.turn += 1;
     g.state.actions = {};
     g.state.rolls = [];
+    g.state.adjudicated = false;
     g.state.spent = [];
     g.state.refused = [];
     g.state.queue = undefined;
@@ -296,7 +296,8 @@ export async function finishNarration(gameId: string, r: RunResult, results: str
   await chronicle(g, narration, state);
 }
 
-export function mergeNpcs(old: Npc[], incoming: unknown[]): Npc[] {
+/** Merges the DM's NPC list. NPCs the dice hit this turn keep the server's HP (the Bookkeeper applies the damage). */
+export function mergeNpcs(old: Npc[], incoming: unknown[], protect: Set<string> = new Set()): Npc[] {
   const out = old.map((n) => ({ ...n }));
   for (const raw of incoming.slice(0, 40)) {
     if (!raw || typeof raw !== 'object' || typeof (raw as Npc).name !== 'string') continue;
@@ -312,6 +313,11 @@ export function mergeNpcs(old: Npc[], incoming: unknown[]): Npc[] {
       voice: typeof n.voice === 'string' ? clip(n.voice, 40) : undefined,
     };
     const prev = out.find((o) => sameName(o.name, clean.name));
+    const guarded = [...protect].some((p) => sameName(p, clean.name));
+    if (guarded) {
+      clean.hp = prev?.hp ?? clean.maxHp ?? clean.hp;
+      if (clean.status === 'dead' && (clean.hp ?? 1) > 0) delete clean.status;
+    }
     if (prev) Object.assign(prev, Object.fromEntries(Object.entries(clean).filter(([, v]) => v !== undefined)));
     else out.push(clean);
   }

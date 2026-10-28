@@ -101,3 +101,32 @@ Every logged-in user can create adventures (**Lobby → New adventure**). A play
 ### The campaign file (campaign.md)
 
 Each game has a living `campaign.md` with fixed sections: How to run · Story so far · Current scene · Party status · NPCs · Locations · Quests and open threads · Loot and items · Rulings made · Timeline. The **Chronicler** (`dnd-chronicle`) updates it after every turn with section patches (it can't rewrite things away, and it can't touch the party table, which the server generates from the database). At a scene end it compresses "Story so far". Everyone in the game can read it; the host can edit it; every version is kept. Every DM prompt gets the full file, the rules found by memory search, and the last turns verbatim.
+
+## 9. The turn loop and the Bookkeeper
+
+Every turn runs on the server, step by step, and every step is in the story log:
+
+1. **Collect** every active player's action (in initiative order during combat).
+2. **Adjudicate** (`dnd-adjudicate`): which rolls the actions need (attack vs AC, save vs DC, checks, damage, healing) and which **resources** they spend. It never rolls.
+3. **Check and spend.** A resource that isn't there (e.g. *Channel Divinity 0/1*, a spell slot level you don't have, the last arrow) refuses that action: the player sees why and picks again, nothing is spent. Otherwise the server spends it (`Channel Divinity 1/1 → 0/1`).
+4. **Dice.** For player characters the server computes every modifier from the sheet (ability, proficiency, weapon, spell attack/DC, conditions that give advantage or disadvantage); the AI's numbers are only used for NPCs. Per roll the player picks **🎲 Roll** (server, crypto RNG) or **I roll myself**: they enter the face of each physical die, the server checks every value against the die (1–6 for a d6…) and marks the roll ✋ in the log. NPC rolls and rolls of away players are made by the server. Damage only rolls after a hit (doubled dice on a natural 20); "save for half" spells halve on a made save.
+5. **Narrate** (`dnd-narrate`) with the real results, then the **state JSON** (deltas, XP, conditions, items, NPCs, combat, zones, choices).
+6. **Bookkeeper** (every turn, every character):
+   - HP comes from the dice: damage goes through temporary HP first, never below 0; at 0 the character falls unconscious (instant death on massive damage), damage at 0 is a death-save failure, healing never exceeds max and wakes the character. Concentrating characters roll the Constitution save automatically.
+   - The AI's other deltas are clamped: counters never below 0 or above max, items must exist to be removed, gold can't go negative, conditions are tracked with durations. An HP change the dice don't back, gold above the host's threshold, or XP above the threshold goes to the **host for approval**. If the DM wrote a different HP number than the dice, the server's number wins and the host sees a Bookkeeper note.
+   - Conditions tick down, per-turn counters recharge, and **XP is checked against the level table after every round**: at a threshold a level-up banner appears (capped at the game's end level).
+7. **Chronicler** updates `campaign.md`; HiveMind saves the turn to campaign memory.
+
+**Resources** are counters `{name, current, max, recharge}`: spell slots per level (warlock pact slots on a short rest), class features (Rage, Bardic Inspiration, Channel Divinity, Wild Shape, Second Wind, Action Surge, Ki/Focus, Lay on Hands, Sorcery Points, Arcane Recovery…), species traits (Relentless Endurance, Breath Weapon…), hit dice and ammunition. The sheet shows pips `●○ 1/2`.
+
+**Rests** (host, outside combat): a short rest refills short-rest counters and lets each character spend hit dice (server-rolled + CON); a long rest refills everything, HP to max, hit dice back (SRD 5.1: half, SRD 5.2: all), exhaustion −1.
+
+**Levels:** XP (or the host's **Milestone** button) unlocks the **level-up step** on the sheet: HP fixed, server-rolled or "I roll myself", plus new subclass/ASI/spells, checked like the builder.
+
+**Initiative** is rolled by the server when the DM starts a fight (d20 + DEX for each character and enemy; ties: higher bonus, then players first). Each turn in combat is one round; dead or fled enemies leave the order and the fight ends when none are left.
+
+**Zone board:** the DM places everyone in named zones with distances in feet; the server validates names and distances and shows ranges ("Range from Turks: The Bell-Hag melee · Esvahanna 15 ft").
+
+**Rerolls:** any player can ask to have the last narration told again. A **majority** of the players (one vote each) must agree. The turn rolls back to just before the narration and the DM tells it again **with the same dice**. The host sets the budget at setup.
+
+**Host override:** the host can set HP, temp HP, XP, gold, exhaustion, counters and conditions directly; every override is logged for everyone.

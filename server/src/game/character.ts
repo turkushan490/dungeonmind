@@ -320,7 +320,7 @@ export function parseItems(lines: string[]): InventoryItem[] {
   for (const raw of lines) {
     const line = raw.trim();
     if (!line || line.length > 120) continue;
-    const m = /^(\d+)\s*[×x]\s*(.+)$/.exec(line) ?? /^(.+?)\s*\((\d+)\)$/.exec(line);
+    const m = /^(\d+)\s*[×x]?\s+(.+)$/.exec(line) ?? /^(\d+)\s*[×x]\s*(.+)$/.exec(line) ?? /^(.+?)\s*\((\d+)\)$/.exec(line);
     const [name, qty] = m ? (/^\d/.test(m[1]) ? [m[2], Number(m[1])] : [m[1], Number(m[2])]) : [line, 1];
     const prev = out.find((i) => i.name.toLowerCase() === name.toLowerCase());
     if (prev) prev.qty += qty;
