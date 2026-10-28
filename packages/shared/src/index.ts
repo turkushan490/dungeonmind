@@ -23,3 +23,4 @@ export interface PresenceUser {
 }
 export * from './rules';
 export * from './character';
+export * from './game';

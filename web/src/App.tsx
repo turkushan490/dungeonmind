@@ -7,6 +7,8 @@ import { AgeGate } from './pages/AgeGate';
 import { Lobby } from './pages/Lobby';
 import { Login } from './pages/Login';
 import { SettingsPage } from './pages/Settings';
+import { GameSetup } from './pages/GameSetup';
+import { NewAdventure } from './pages/NewAdventure';
 import { CharacterLibrary, CharacterView, NewCharacter } from './pages/Characters';
 import { match, navigate, usePath } from './router';
 import { closeSocket, getSocket } from './socket';
@@ -66,6 +68,7 @@ export function App() {
   };
 
   const table = match('/table/:id', path);
+  const gameSetup = match('/games/:id', path);
   const charView = match('/characters/:id', path);
   const charEdit = match('/characters/:id/edit', path);
 
@@ -100,6 +103,8 @@ export function App() {
         )}
         {path === '/' && <Lobby />}
         {path === '/settings' && <SettingsPage />}
+        {path === '/adventures/new' && <NewAdventure />}
+        {gameSetup && <GameSetup id={gameSetup.id} />}
         {path === '/characters' && <CharacterLibrary />}
         {path === '/characters/new' && <NewCharacter />}
         {charView && charView.id !== 'new' && <CharacterView id={charView.id} />}

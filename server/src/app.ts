@@ -3,6 +3,7 @@ import staticFiles from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { existsSync } from 'node:fs';
 import { characterRoutes } from './api/characters.js';
+import { gameRoutes } from './api/games.js';
 import { hivemindRoutes } from './api/hivemind.js';
 import { rulesRoutes } from './api/rules.js';
 import { authRoutes } from './auth/index.js';
@@ -40,6 +41,7 @@ export async function buildApp(opts: { logger?: boolean; web?: boolean; realtime
   rulesRoutes(app);
   hivemindRoutes(app);
   characterRoutes(app);
+  gameRoutes(app);
 
   if (opts.realtime !== false) attachRealtime(app);
 

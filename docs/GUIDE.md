@@ -76,3 +76,14 @@ Every player has a **character library** (Characters tab). Characters are copied
 - **Builder:** step by step: ruleset, species, class (+ subclass at the right level), background, ability scores (standard array, 27-point buy, or 4d6-drop-lowest rolled **by the server**), skills, spells, equipment and story. The server checks every rule live (skill lists and counts, point-buy cost, background/species bonuses, ASIs, spell lists, cantrip/known/prepared counts, slot levels) and shows the derived sheet (HP, AC, saves, spell DC, resource counters).
 - **AI builds the sheet:** describe the character; HiveMind's `dnd-sheet` canvas returns a sheet, DungeonMind validates it and gives the AI one chance to fix illegal parts, then it opens in the builder as a draft.
 - **Import:** a DungeonMind export (`.dungeonmind.json`), any JSON sheet with common field names (race/species, class, stats/abilities, skills, spells…), or pasted text (read by the AI).
+
+## 7. Adventures
+
+Every logged-in user can create adventures (**Lobby → New adventure**). A player only gets into games they're **invited** to.
+
+1. **Ruleset:** 5e 2014 (SRD 5.1) or 5e 2024 (SRD 5.2).
+2. **Table rules:** start and end level (e.g. 1→14), max players, whether a player may run several characters, the group's reroll budget, XP or milestones, and whether spectators may watch (public/private, changeable any time).
+3. **The idea:** write your wishes; the DM (`dnd-setup`) suggests 4 pitches, or you write your own.
+4. **The setup form:** for the chosen pitch the DM builds a form specific to that adventure (dropdowns, sliders, text). Your answers go into the campaign file.
+5. **Invite** players by username. They see the invite in their lobby (live), accept, and bring a character from their library (same ruleset, at the start level; it's re-checked for legality and copied into the game).
+6. **Spectators:** running public games show up in everyone's **Spectate** list (read only).

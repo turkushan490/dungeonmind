@@ -52,6 +52,39 @@ const MIGRATIONS = [
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   `,
+  // M4: games, members (invites), characters in games
+  `
+  CREATE TABLE games (
+    id TEXT PRIMARY KEY,
+    host_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    ruleset TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'setup',
+    visibility TEXT NOT NULL DEFAULT 'public',
+    settings TEXT NOT NULL,
+    state TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE game_members (
+    game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (game_id, user_id)
+  );
+  CREATE INDEX game_members_user ON game_members(user_id);
+  CREATE TABLE game_characters (
+    id TEXT PRIMARY KEY,
+    game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    source_id TEXT,
+    data TEXT NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX game_characters_game ON game_characters(game_id);
+  `,
 ];
 
 export const db = new DatabaseSync(join(config.dataDir, 'dungeonmind.db'));
