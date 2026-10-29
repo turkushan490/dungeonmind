@@ -5,7 +5,8 @@ import { newId } from '../crypto.js';
 import { db, json } from '../db.js';
 import { rollAbilityScores } from '../game/dice.js';
 import { buildCharacter, buildOf, derive, STANDARD_ARRAY, subclassLevel, validateBuild } from '../game/character.js';
-import { HiveMindError, outputJson, runCanvas, withRetry } from '../hivemind.js';
+import { outputJson, runCanvas, withRetry } from '../hivemind.js';
+import { background } from '../jobs.js';
 import { findIn, isRuleset, rules, slug } from '../rules/index.js';
 
 export function loadCharacter(id: string): Character | undefined {
@@ -198,11 +199,7 @@ export function characterRoutes(app: FastifyInstance) {
     const { ruleset, level, description } = (req.body ?? {}) as { ruleset?: string; level?: number; description?: string };
     if (!isRuleset(ruleset)) return reply.code(400).send({ error: 'Pick a ruleset' });
     if (!description?.trim() || description.length > 4000) return reply.code(400).send({ error: 'Describe the character (max 4000 characters)' });
-    try {
-      return await aiSheet(req.user!.id, ruleset, Math.max(1, Math.min(20, Number(level) || 1)), description.trim());
-    } catch (err) {
-      return reply.code(err instanceof HiveMindError ? 502 : 500).send({ error: (err as Error).message });
-    }
+    return background(req, reply, () => aiSheet(req.user!.id, ruleset, Math.max(1, Math.min(20, Number(level) || 1)), description.trim()));
   });
 
   /** Import: our own export, any JSON sheet with common field names, or pasted text (read by the AI). */
@@ -219,11 +216,9 @@ export function characterRoutes(app: FastifyInstance) {
       const build = parsed.format === 'dungeonmind-character' ? ({ ...raw, ruleset } as CharacterBuild) : normalizeBuild(ruleset, raw, Number(level) || 1);
       return { build, errors: validateBuild(rules(ruleset), build, { rolled: rolledValues(build.rollId, req.user!.id) }) };
     }
-    try {
-      return await aiSheet(req.user!.id, ruleset, Math.max(1, Math.min(20, Number(level) || 1)), `Convert this existing character sheet as faithfully as the rules allow:\n\n${text.slice(0, 12000)}`);
-    } catch (err) {
-      return reply.code(err instanceof HiveMindError ? 502 : 500).send({ error: (err as Error).message });
-    }
+    return background(req, reply, () =>
+      aiSheet(req.user!.id, ruleset, Math.max(1, Math.min(20, Number(level) || 1)), `Convert this existing character sheet as faithfully as the rules allow:\n\n${text.slice(0, 12000)}`),
+    );
   });
 }
 

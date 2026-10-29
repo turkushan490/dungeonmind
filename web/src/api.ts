@@ -30,7 +30,34 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
     if (!opts.quiet && res.status !== 401) toast(err.message);
     throw err;
   }
+  // Slow AI work answers 202 {jobId}; wait for it here so callers just get the result.
+  if (res.status === 202 && data.jobId) return waitForJob<T>(data.jobId, opts.quiet);
   return data as T;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function waitForJob<T>(jobId: string, quiet?: boolean): Promise<T> {
+  for (;;) {
+    await sleep(1500);
+    let job: { status: string; result?: T; error?: string };
+    try {
+      job = await api(`/api/jobs/${jobId}`, { quiet: true });
+    } catch (err) {
+      // A dropped connection or a proxy hiccup: keep waiting; a gone job (404) is final.
+      if (err instanceof ApiError && err.status === 404) {
+        if (!quiet) toast(err.message);
+        throw err;
+      }
+      continue;
+    }
+    if (job.status === 'done') return job.result as T;
+    if (job.status === 'error') {
+      const err = new ApiError(job.error ?? 'The DM failed', 502);
+      if (!quiet) toast(err.message);
+      throw err;
+    }
+  }
 }
 
 /** Raw upload (images): the body is the file itself. */

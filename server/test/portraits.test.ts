@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FakeHiveMind, PNG } from './fake-hivemind.js';
-import { CANVASES, freshApp, setupGame } from './helpers.js';
+import { CANVASES, freshApp, settle, setupGame } from './helpers.js';
 
 let app: FastifyInstance;
 const hm = new FakeHiveMind();
@@ -35,7 +35,7 @@ describe('portraits', () => {
   let options: string[];
 
   it('makes 4 options in one HiveMind run and copies them into DungeonMind', async () => {
-    const r = await t.as(t.host, 'POST', `/api/characters/${libId}/portraits`, { style: 'charcoal sketch' });
+    const r = await settle(app, t.host, await t.as(t.host, 'POST', `/api/characters/${libId}/portraits`, { style: 'charcoal sketch' }));
     expect(r.statusCode).toBe(200);
     options = r.json().options;
     expect(options).toHaveLength(4);
@@ -67,7 +67,7 @@ describe('portraits', () => {
   it('reports a missing image model clearly', async () => {
     const before = hm.onRun;
     hm.onRun = () => ({ outputs: { portraits: 'No image model selected' } });
-    const r = await t.as(t.host, 'POST', `/api/characters/${libId}/portraits`, {});
+    const r = await settle(app, t.host, await t.as(t.host, 'POST', `/api/characters/${libId}/portraits`, {}));
     expect(r.statusCode).toBe(502);
     expect(r.json().error).toMatch(/no images/);
     hm.onRun = before;

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FakeHiveMind } from './fake-hivemind.js';
-import { freshApp, register } from './helpers.js';
+import { freshApp, register, settle } from './helpers.js';
 
 let app: FastifyInstance;
 let cookie: string;
@@ -109,7 +109,7 @@ describe('character library', () => {
       };
       return { outputs: { sheet: JSON.stringify(sheet) } };
     };
-    const r = await call('POST', '/api/characters/ai', { ruleset: 'srd51', level: 1, description: 'An angry orc who hates wizards' });
+    const r = await settle(app, cookie, await call('POST', '/api/characters/ai', { ruleset: 'srd51', level: 1, description: 'An angry orc who hates wizards' }));
     expect(r.statusCode).toBe(200);
     expect(r.json().errors).toEqual([]);
     expect(r.json().build).toMatchObject({ species: 'half-orc', class: 'barbarian', skills: ['athletics', 'survival'] });
@@ -119,7 +119,7 @@ describe('character library', () => {
 
   it('reports a HiveMind outage as 502, not a crash', async () => {
     hm.onRun = () => ({ error: 'model not loaded' });
-    const r = await call('POST', '/api/characters/ai', { ruleset: 'srd51', level: 1, description: 'x' });
+    const r = await settle(app, cookie, await call('POST', '/api/characters/ai', { ruleset: 'srd51', level: 1, description: 'x' }));
     expect(r.statusCode).toBe(502);
   }, 30_000);
 });

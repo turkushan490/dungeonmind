@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FakeHiveMind } from './fake-hivemind.js';
-import { freshApp, register } from './helpers.js';
+import { freshApp, register, settle } from './helpers.js';
 
 let app: FastifyInstance;
 const hm = new FakeHiveMind();
@@ -67,15 +67,33 @@ describe('adventure setup', () => {
               }),
             },
           };
-    const p = (await as(host, 'POST', `/api/games/${gameId}/pitches`, { wishes: 'swamp horror' })).json();
+    const p = (await settle(app, host, await as(host, 'POST', `/api/games/${gameId}/pitches`, { wishes: 'swamp horror' }))).json();
     expect(p.pitches.map((x: any) => x.title)).toEqual(['Drowned Bells', 'Ash Crown']);
     expect(hm.callsOf('dnd-setup')[0]).toMatchObject({ question: 'swamp horror', vars: { stage: 'pitches', startLevel: '1', endLevel: '14' } });
-    const f = (await as(host, 'POST', `/api/games/${gameId}/form`, { pitch: p.pitches[0] })).json();
+    const f = (await settle(app, host, await as(host, 'POST', `/api/games/${gameId}/form`, { pitch: p.pitches[0] }))).json();
     expect(f.form.fields.map((x: any) => x.id)).toEqual(['deadly', 'villain']);
     expect(f.formValues).toEqual({ deadly: 3, villain: 'A hag' });
     await as(host, 'PUT', `/api/games/${gameId}`, { formValues: { deadly: 5, villain: 'A drowned priest' } });
     expect((await as(host, 'GET', `/api/games/${gameId}`)).json().settings.formValues.deadly).toBe(5);
   });
+
+  it('runs slow AI work as a background job, so no proxy timeout can hit it', async () => {
+    const before = hm.onRun;
+    hm.onRun = () => ({ delayMs: 300, outputs: { pitch: JSON.stringify({ pitches: [{ title: 'Slow Fog', hook: 'It takes its time.' }] }) } });
+    const start = await as(host, 'POST', `/api/games/${gameId}/pitches`, { wishes: 'fog' });
+    expect(start.statusCode).toBe(202);
+    const { jobId } = start.json();
+    expect((await as(host, 'GET', `/api/jobs/${jobId}`)).json().status).toBe('running');
+    expect((await as(ana, 'GET', `/api/jobs/${jobId}`)).statusCode).toBe(404);
+    const done = await settle(app, host, start);
+    expect(done.json().pitches[0].title).toBe('Slow Fog');
+
+    hm.onRun = () => ({ error: "Ollama /api/chat failed: HTTP 404 {\"error\":\"model 'x' not found\"}" });
+    const failed = await settle(app, host, await as(host, 'POST', `/api/games/${gameId}/pitches`, { wishes: 'fog' }));
+    expect(failed.statusCode).toBe(502);
+    expect(failed.json().error).toMatch(/DM model isn't available/);
+    hm.onRun = before;
+  }, 60_000);
 
   it('only the host changes the setup', async () => {
     expect((await as(ana, 'PUT', `/api/games/${gameId}`, { maxPlayers: 1 })).statusCode).toBe(404);

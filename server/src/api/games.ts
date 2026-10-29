@@ -6,6 +6,7 @@ import { db, tx } from '../db.js';
 import { validateBuild } from '../game/character.js';
 import { broadcast, DEFAULT_SETTINGS, detail, freshState, gameCharacters, loadGame, roleIn, saveGame, summaries, type GameRow } from '../game/store.js';
 import { HiveMindError, outputJson, runCanvas, withRetry } from '../hivemind.js';
+import { background } from '../jobs.js';
 import { emitToLobby, emitToUser, onGameJoin } from '../realtime.js';
 import { isRuleset, rules } from '../rules/index.js';
 import { loadCharacter, rolledValues } from './characters.js';
@@ -201,7 +202,7 @@ export function gameRoutes(app: FastifyInstance) {
     if (!r) return;
     const { g } = r;
     const wishes = String((req.body as { wishes?: string })?.wishes ?? g.settings.wishes ?? '').slice(0, 4000);
-    try {
+    return background(req, reply, async () => {
       const out = await withRetry(() => runCanvas('dnd-setup', wishes || 'Surprise me: a dark fantasy adventure.', { vars: { ...setupVars(g), stage: 'pitches', pitch: '' } }));
       const pitches = (outputJson<{ pitches?: Pitch[] }>(out, 'pitch').pitches ?? [])
         .filter((p) => p?.title)
@@ -212,9 +213,7 @@ export function gameRoutes(app: FastifyInstance) {
       g.settings.pitches = pitches;
       saveGame(g);
       return { pitches };
-    } catch (err) {
-      return reply.code(502).send({ error: (err as Error).message });
-    }
+    });
   });
 
   app.post('/api/games/:id/form', { preHandler: requireUser }, async (req, reply) => {
@@ -224,7 +223,7 @@ export function gameRoutes(app: FastifyInstance) {
     const p = (req.body as { pitch?: Pitch })?.pitch;
     if (!p?.title) return reply.code(400).send({ error: 'Pick or write a pitch' });
     g.settings = cleanSettings({ pitch: p }, g.settings);
-    try {
+    return background(req, reply, async () => {
       const out = await withRetry(() =>
         runCanvas('dnd-setup', g.settings.wishes || p.title, { vars: { ...setupVars(g), stage: 'form', pitch: `${g.settings.pitch!.title}: ${g.settings.pitch!.hook}` } }),
       );
@@ -234,9 +233,7 @@ export function gameRoutes(app: FastifyInstance) {
       if (f.title && g.name === 'Untitled adventure') g.name = String(f.title).slice(0, 80);
       saveGame(g);
       return { form: g.settings.form, formValues: g.settings.formValues, name: g.name };
-    } catch (err) {
-      return reply.code(502).send({ error: (err as Error).message });
-    }
+    });
   });
 
   // ---- Invites ----

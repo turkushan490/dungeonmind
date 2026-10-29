@@ -7,6 +7,7 @@ import { broadcast, gameCharacters, loadGame, saveGame, saveGameCharacter } from
 import { titleCase } from '../game/text.js';
 import { fetchFile, HiveMindError, imagePaths, runCanvas, withRetry } from '../hivemind.js';
 import { saveImage } from '../images.js';
+import { background } from '../jobs.js';
 import { think } from '../game/queue.js';
 import { loadCharacter, saveCharacter } from './characters.js';
 
@@ -71,11 +72,7 @@ export function portraitRoutes(app: FastifyInstance) {
     if (!c || c.ownerId !== req.user!.id) return reply.code(404).send({ error: 'Not found' });
     const style = STYLES.includes(String((req.body as { style?: string })?.style)) ? (req.body as { style: string }).style : STYLES[0];
     const who = `${c.name}, a ${titleCase(c.subspecies ?? c.species)} ${titleCase(c.class)}${c.appearance ? `. ${c.appearance}` : ''}`;
-    try {
-      return { options: await generateImages('dnd-portrait', 'portraits', who, { style }, 'option'), styles: STYLES };
-    } catch (err) {
-      return reply.code(502).send({ error: (err as Error).message });
-    }
+    return background(req, reply, async () => ({ options: await generateImages('dnd-portrait', 'portraits', who, { style }, 'option'), styles: STYLES }));
   });
 
   app.post('/api/characters/:id/portrait', { preHandler: requireUser }, async (req, reply) => {

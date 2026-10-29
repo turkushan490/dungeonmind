@@ -29,7 +29,23 @@ export async function registerAdmin(app: FastifyInstance, username: string): Pro
   return cookie;
 }
 
-export const CANVASES = ['dnd-setup', 'dnd-adjudicate', 'dnd-narrate', 'dnd-chronicle', 'dnd-ask', 'dnd-sheet', 'dnd-portrait', 'dnd-scene'];
+/**
+ * Slow AI endpoints answer 202 {jobId}; this waits for the job the way the browser does and gives back
+ * a response-like object: 200 + result when done, 502 + {error} when it failed.
+ */
+export async function settle(app: FastifyInstance, cookie: string, res: { statusCode: number; json(): any }): Promise<{ statusCode: number; json(): any }> {
+  if (res.statusCode !== 202) return res;
+  const { jobId } = res.json();
+  for (let i = 0; i < 600; i++) {
+    const job = (await app.inject({ url: `/api/jobs/${jobId}`, headers: { cookie } })).json();
+    if (job.status === 'done') return { statusCode: 200, json: () => job.result };
+    if (job.status === 'error') return { statusCode: 502, json: () => ({ error: job.error }) };
+    await new Promise((r) => setTimeout(r, 20));
+  }
+  throw new Error(`job ${jobId} never finished`);
+}
+
+export const CANVASES =['dnd-setup', 'dnd-adjudicate', 'dnd-narrate', 'dnd-chronicle', 'dnd-ask', 'dnd-sheet', 'dnd-portrait', 'dnd-scene'];
 
 export const fighterBuild = (name: string, over: Record<string, unknown> = {}) => ({
   ruleset: 'srd51',
