@@ -4,6 +4,7 @@ import { requireAdmin, requireUser } from '../auth/index.js';
 import { getSetting, json, setSetting } from '../db.js';
 import { canvasFiles, health, hivemindSettings, installCanvases, listModels, memoryImport, pullModel, saveHivemindSettings, type ModelRoles } from '../hivemind.js';
 import { memoryEntries } from '../rules/index.js';
+import { installNightly, originOf } from '../trainer/nightly.js';
 
 interface InstallState {
   canvasesAt?: string;
@@ -14,6 +15,18 @@ interface InstallState {
 
 const state = (): InstallState => json<InstallState>(getSetting('hivemind.installed'), {});
 const saveState = (s: InstallState) => setSetting('hivemind.installed', JSON.stringify(s));
+
+/** Sets the DM model (story + JSON blocks) and reinstalls the canvases; the AI Trainer promotes through this too. */
+export async function setDmModel(providerId: string, model: string, opts: { pull?: boolean; roles?: ('story' | 'json')[] } = {}) {
+  const pulled = opts.pull ? await pullModel(providerId, model) : undefined;
+  const s = hivemindSettings();
+  const next = { ...s.models };
+  for (const r of opts.roles?.length ? opts.roles : (['story', 'json'] as const)) next[r] = { providerId, model };
+  saveHivemindSettings({ models: next });
+  // Reinstalling keeps models picked by hand in HiveMind; nodes without one get the new default.
+  const canvases = await installCanvases().catch(() => []);
+  return { models: next, pulled, canvases };
+}
 
 export function hivemindRoutes(app: FastifyInstance) {
   app.get('/api/settings/hivemind', { preHandler: requireAdmin }, async () => {
@@ -49,10 +62,12 @@ export function hivemindRoutes(app: FastifyInstance) {
     return c;
   });
 
-  app.post('/api/hivemind/install', { preHandler: requireAdmin }, async () => {
+  app.post('/api/hivemind/install', { preHandler: requireAdmin }, async (req) => {
     const canvases = await installCanvases();
     saveState({ ...state(), canvases, canvasesAt: new Date().toISOString() });
-    return { canvases };
+    // The AI Trainer's nightly workflow comes along (when HiveMind has schedules).
+    const nightly = await installNightly(req.user!.id, originOf(req)).catch((err) => ({ ok: false, error: (err as Error).message }));
+    return { canvases, nightly };
   });
 
   /**
@@ -62,19 +77,11 @@ export function hivemindRoutes(app: FastifyInstance) {
   app.post('/api/hivemind/dm-model', { preHandler: requireAdmin }, async (req, reply) => {
     const { providerId, model, pull, roles } = (req.body ?? {}) as { providerId?: string; model?: string; pull?: boolean; roles?: ('story' | 'json')[] };
     if (!providerId || !model || model.length > 200) return reply.code(400).send({ error: 'Pick the provider and the model name' });
-    let pulled: unknown;
     try {
-      if (pull) pulled = await pullModel(providerId, model);
+      return await setDmModel(providerId, model, { pull, roles });
     } catch (err) {
       return reply.code(502).send({ error: (err as Error).message });
     }
-    const s = hivemindSettings();
-    const next = { ...s.models };
-    for (const r of roles?.length ? roles : (['story', 'json'] as const)) next[r] = { providerId, model };
-    saveHivemindSettings({ models: next });
-    // Reinstalling keeps models picked by hand in HiveMind; nodes without one get the new default.
-    const canvases = await installCanvases().catch(() => []);
-    return { models: next, pulled, canvases };
   });
 
   /** Loads the SRD into HiveMind memory (rules:srd51 / rules:srd52). Runs in the background; poll GET /api/settings/hivemind. */

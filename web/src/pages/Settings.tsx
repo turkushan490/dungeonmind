@@ -4,6 +4,7 @@ import { useMe } from '../me';
 import { toast } from '../notify';
 import { VoiceSettings } from './VoiceSettings';
 import { changeServer, isNative } from '../native';
+import { DmModelPicker } from './Trainer';
 
 interface ModelRef {
   providerId: string;
@@ -188,7 +189,7 @@ function HiveMindSettings() {
             .join(' · ')}
         </p>
       )}
-      <DmModel models={models} onDone={load} />
+      <DmModel onDone={load} />
       {s.installed.canvases && (
         <ul className="grid gap-1 text-sm sm:grid-cols-2">
           {s.installed.canvases.map((c) => (
@@ -206,41 +207,12 @@ function HiveMindSettings() {
   );
 }
 
-/** The Lab's fine-tuned DM model as the default, in one click. */
-function DmModel({ models, onDone }: { models: { providerId: string; model: string }[]; onDone: () => void }) {
-  const [providerId, setProvider] = useState('');
-  const [model, setModel] = useState('');
-  const [busy, setBusy] = useState(false);
-  const providers = [...new Set(models.map((m) => m.providerId))];
+/** The DM model: only trained dungeonmind-* models, the curated list and models that passed the simulator (AI Trainer). */
+function DmModel({ onDone }: { onDone: () => void }) {
   return (
     <div className="space-y-2 border-t border-[#30363d] pt-3">
-      <h3 className="label">Fine-tuned DM model (from HiveMind's Lab)</h3>
-      <p className="text-xs text-slate-500">e.g. hf.co/turkushan490/dungeonmind-dm-8b-gguf:Q4_K_M. Pulls it into Ollama through HiveMind and uses it for the story and rules blocks.</p>
-      <div className="flex flex-wrap gap-2">
-        <select className="input w-auto" value={providerId} onChange={(e) => setProvider(e.target.value)}>
-          <option value="">– Ollama provider –</option>
-          {providers.map((p) => (
-            <option key={p}>{p}</option>
-          ))}
-        </select>
-        <input className="input min-w-0 flex-1" placeholder="model name" value={model} onChange={(e) => setModel(e.target.value)} />
-        <button
-          className="btn"
-          disabled={busy || !providerId || !model.trim()}
-          onClick={async () => {
-            setBusy(true);
-            try {
-              await api('/api/hivemind/dm-model', { body: { providerId, model: model.trim(), pull: true } });
-              toast('Pulling in HiveMind and set as the default DM model', 'info');
-              onDone();
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          Pull and use
-        </button>
-      </div>
+      <h3 className="label">DM model (story and rules blocks)</h3>
+      <DmModelPicker onDone={onDone} />
     </div>
   );
 }
@@ -256,7 +228,7 @@ function Tokens() {
   return (
     <section className="card space-y-2">
       <h2 className="rune-title">API tokens</h2>
-      <p className="text-xs text-slate-500">For programs, e.g. HiveMind's Lab using the Bookkeeper API (docs/LAB_API.md). A token acts as you.</p>
+      <p className="text-xs text-slate-500">For programs, e.g. HiveMind using the Bookkeeper API (docs/LAB_API.md). A token acts as you.</p>
       <div className="flex gap-2">
         <input className="input" placeholder="Name, e.g. HiveMind Lab" value={name} onChange={(e) => setName(e.target.value)} />
         <button className="btn" disabled={!name.trim()} onClick={async () => (setShown((await api('/api/tokens', { body: { name } })).token), setName(''), load())}>

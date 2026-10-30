@@ -9,6 +9,8 @@ export interface Me {
   role: Role;
   /** Answered the 18+ question. */
   adult: boolean;
+  /** Accepted "Games you play here are used to train the AI Dungeon Master." */
+  trainingAccepted: boolean;
   authMode: AuthMode;
   /** Portal mode: logged in through "Admin login" (wins over the portal until dropped). */
   adminSession?: boolean;

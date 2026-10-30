@@ -7,6 +7,9 @@ import { getSetting, json, setSetting } from './db.js';
 /** What DungeonMind needs from HiveMind (docs/HIVEMIND_CHANGES.md §9). */
 export const REQUIRED_FEATURES = ['vars', 'jsonMode', 'memoryKeyTemplate', 'nodeOutputs', 'memorySearch', 'memoryImport'] as const;
 export const OPTIONAL_FEATURES = ['numCtx', 'imageBatch', 'history'] as const;
+/** HiveMind M9 (the AI Trainer). Each one is feature-detected: without it that part of the Trainer says "HiveMind needs updating". */
+export const TRAINER_FEATURES = ['modelOverride', 'nodeInputs', 'scopedTraining', 'trainEvents', 'trainingWindow', 'schedules'] as const;
+export type TrainerFeature = (typeof TRAINER_FEATURES)[number];
 
 export const canvasDir = () => resolve(process.env.CANVAS_DIR || (existsSync('hivemind') ? 'hivemind' : existsSync('../hivemind') ? '../hivemind' : '/app/hivemind'));
 
@@ -58,7 +61,7 @@ export function saveHivemindSettings(s: { url?: string; token?: string; models?:
   if (s.timeoutMs) setSetting('hivemind.timeoutMs', String(Math.max(30_000, Math.min(60 * 60_000, s.timeoutMs))));
 }
 
-async function call<T>(path: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<T> {
+export async function call<T>(path: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<T> {
   const { url, token } = hivemindSettings();
   if (!url) throw new HiveMindError('HiveMind is not set up yet (Settings → HiveMind)', 0, false);
   let res: Response;
@@ -85,11 +88,21 @@ export interface HiveMindHealth {
   error?: string;
 }
 
+let featureCache: { at: number; features: string[] } | undefined;
+
+/** HiveMind's feature list, cached for 30 s (every DM call checks `nodeInputs`). */
+export async function features(): Promise<string[]> {
+  if (featureCache && Date.now() - featureCache.at < 30_000) return featureCache.features;
+  return (await health()).features;
+}
+export const hasFeature = async (f: TrainerFeature) => (await features()).includes(f);
+
 /** The compatibility check: Settings shows it, and games refuse to start while required features are missing. */
 export async function health(): Promise<HiveMindHealth> {
   try {
     const h = await call<{ ok: boolean; version?: string; features?: string[] }>('/api/health', { timeoutMs: 8000 });
     const features = h.features ?? [];
+    featureCache = { at: Date.now(), features };
     return {
       ok: !!h.ok,
       version: h.version,
@@ -98,6 +111,7 @@ export async function health(): Promise<HiveMindHealth> {
       missingOptional: OPTIONAL_FEATURES.filter((f) => !features.includes(f)),
     };
   } catch (err) {
+    featureCache = undefined;
     return { ok: false, features: [], missing: [...REQUIRED_FEATURES], missingOptional: [...OPTIONAL_FEATURES], error: (err as Error).message };
   }
 }
@@ -134,7 +148,7 @@ export function canvasFiles(): CanvasFile[] {
 export function roleOf(n: CanvasNode): keyof ModelRoles | undefined {
   if (n.type === 'image') return 'image';
   if (n.type !== 'llm') return;
-  return n.config.json ? 'json' : n.label === 'narration' || n.label === 'answer' ? 'story' : 'json';
+  return n.config.json ? 'json' : ['narration', 'answer', 'action', 'report'].includes(n.label ?? '') ? 'story' : 'json';
 }
 
 /**
@@ -204,28 +218,34 @@ export interface RunOptions {
   onToken?: (label: string, text: string) => void;
   /** e.g. "narration" started. */
   onNode?: (label: string, event: 'start' | 'done') => void;
+  /** Every run event (tokens, thinking, node starts), for the Trainer's "Watch the AI" panel. */
+  onEvent?: (ev: RunEvent) => void;
+  /** HiveMind `modelOverride`: models for this run only, by node id or '*'. */
+  models?: Record<string, ModelRef>;
 }
 
-/** Starts a canvas run, follows its SSE stream until the end, then reads the per-node outputs. */
-export async function runCanvas(canvasId: string, question: string, opts: RunOptions = {}): Promise<RunResult> {
-  const { url, token, timeoutMs } = hivemindSettings();
-  const vars = Object.fromEntries(Object.entries(opts.vars ?? {}).map(([k, v]) => [k, String(v ?? '')]));
-  const { runId } = await call<{ runId: string }>('/api/runs', { method: 'POST', body: JSON.stringify({ canvasId, question: question || '-', vars }) });
+export interface RunEvent {
+  type?: string;
+  nodeId?: string;
+  label?: string;
+  text?: string;
+  thinking?: boolean;
+  error?: string;
+  [k: string]: unknown;
+}
 
-  const timeout = AbortSignal.timeout(timeoutMs);
-  const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
-  const labels = new Map<string, string>();
-  let failed: string | undefined;
+/** Reads a HiveMind SSE stream until its `end` event; `onEvent` gets each event name and its parsed data. */
+export async function followSse(path: string, signal: AbortSignal, onEvent: (event: string | undefined, data: string) => void): Promise<void> {
+  const { url, token } = hivemindSettings();
+  const res = await fetch(url + path, { headers: { authorization: `Bearer ${token}`, accept: 'text/event-stream' }, signal });
+  if (!res.ok || !res.body) throw new HiveMindError(`HiveMind events ${res.status}`, res.status);
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
   try {
-    const res = await fetch(`${url}/api/runs/${runId}/events`, { headers: { authorization: `Bearer ${token}`, accept: 'text/event-stream' }, signal });
-    if (!res.ok || !res.body) throw new HiveMindError(`HiveMind events ${res.status}`, res.status);
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = '';
-    let ended = false;
-    while (!ended) {
+    for (;;) {
       const { value, done } = await reader.read();
-      if (done) break;
+      if (done) return;
       buf += dec.decode(value, { stream: true });
       let i: number;
       while ((i = buf.indexOf('\n\n')) >= 0) {
@@ -237,22 +257,38 @@ export async function runCanvas(canvasId: string, question: string, opts: RunOpt
           .filter((l) => l.startsWith('data: '))
           .map((l) => l.slice(6))
           .join('\n');
-        if (event === 'end') {
-          ended = true;
-          break;
-        }
-        if (event === 'error') throw new HiveMindError(json<{ error?: string }>(data, {}).error ?? 'Run failed');
-        if (!data) continue;
-        const ev = json<{ type?: string; nodeId?: string; label?: string; text?: string; error?: string; graph?: { nodes: CanvasNode[] } }>(data, {});
-        if (ev.type === 'run_start') for (const n of ev.graph?.nodes ?? []) labels.set(n.id, n.label ?? n.id);
-        const label = ev.label ?? (ev.nodeId ? (labels.get(ev.nodeId) ?? ev.nodeId) : '');
-        if (ev.type === 'token' && ev.text) opts.onToken?.(label, ev.text);
-        if (ev.type === 'node_start') opts.onNode?.(label, 'start');
-        if (ev.type === 'node_done') opts.onNode?.(label, 'done');
-        if (ev.type === 'error') failed = ev.error ?? 'Run failed';
+        if (event === 'end') return;
+        onEvent(event, data);
       }
     }
+  } finally {
     reader.cancel().catch(() => {});
+  }
+}
+
+/** Starts a canvas run, follows its SSE stream until the end, then reads the per-node outputs. */
+export async function runCanvas(canvasId: string, question: string, opts: RunOptions = {}): Promise<RunResult> {
+  const { timeoutMs } = hivemindSettings();
+  const vars = Object.fromEntries(Object.entries(opts.vars ?? {}).map(([k, v]) => [k, String(v ?? '')]));
+  const { runId } = await call<{ runId: string }>('/api/runs', { method: 'POST', body: JSON.stringify({ canvasId, question: question || '-', vars, ...(opts.models ? { models: opts.models } : {}) }) });
+
+  const timeout = AbortSignal.timeout(timeoutMs);
+  const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
+  const labels = new Map<string, string>();
+  let failed: string | undefined;
+  try {
+    await followSse(`/api/runs/${runId}/events`, signal, (event, data) => {
+      if (event === 'error') throw new HiveMindError(json<{ error?: string }>(data, {}).error ?? 'Run failed');
+      if (!data) return;
+      const ev = json<RunEvent & { graph?: { nodes: CanvasNode[] } }>(data, {});
+      if (ev.type === 'run_start') for (const n of ev.graph?.nodes ?? []) labels.set(n.id, n.label ?? n.id);
+      const label = ev.label ?? (ev.nodeId ? (labels.get(ev.nodeId) ?? ev.nodeId) : '');
+      if (ev.type === 'token' && ev.text && !ev.thinking) opts.onToken?.(label, ev.text);
+      if (ev.type === 'node_start') opts.onNode?.(label, 'start');
+      if (ev.type === 'node_done') opts.onNode?.(label, 'done');
+      if (ev.type === 'error') failed = ev.error ?? 'Run failed';
+      if (ev.type !== 'run_start') opts.onEvent?.({ ...ev, label });
+    });
   } catch (err) {
     // Stop the run on HiveMind too, so it doesn't keep the GPU busy.
     call(`/api/runs/${runId}/cancel`, { method: 'POST' }).catch(() => {});
@@ -262,6 +298,28 @@ export async function runCanvas(canvasId: string, question: string, opts: RunOpt
   const run = await call<{ status: string; final?: string; outputs?: RunResult['outputs']; error?: string }>(`/api/runs/${runId}`);
   if (run.status === 'error' || failed) throw new HiveMindError(`HiveMind run failed: ${failed ?? run.error ?? 'unknown error'}`);
   return { runId, outputs: run.outputs ?? {}, final: run.final };
+}
+
+export interface ChatMessage {
+  role: string;
+  content: string;
+}
+
+/**
+ * HiveMind `nodeInputs`: the exact messages each LLM node of a run sent, by node label.
+ * GET /api/runs/:id?inputs=1 adds `inputs`, keyed by node id (or a list of {nodeId, label, messages}).
+ */
+export async function runInputs(result: RunResult): Promise<Record<string, ChatMessage[]>> {
+  const r = await call<{ inputs?: unknown }>(`/api/runs/${result.runId}?inputs=1`);
+  const labelOf = (nodeId: string) => Object.entries(result.outputs).find(([, o]) => o.nodeId === nodeId)?.[0] ?? nodeId;
+  const out: Record<string, ChatMessage[]> = {};
+  const add = (key: string, v: unknown) => {
+    const messages = Array.isArray(v) ? v : (v as { messages?: unknown })?.messages;
+    if (Array.isArray(messages)) out[labelOf(key)] = messages.filter((m) => m && typeof m.role === 'string').map((m) => ({ role: m.role, content: String(m.content ?? '') }));
+  };
+  if (Array.isArray(r.inputs)) for (const x of r.inputs as { nodeId?: string; label?: string }[]) add(x.label ?? x.nodeId ?? '', x);
+  else if (r.inputs && typeof r.inputs === 'object') for (const [k, v] of Object.entries(r.inputs)) add(k, v);
+  return out;
 }
 
 /** Parses a JSON node output (HiveMind already normalises it; this also strips fences for safety). */
@@ -315,3 +373,69 @@ export async function withRetry<T>(fn: (attempt: number) => Promise<T>, opts: { 
 /** Asks HiveMind to download a model into one of its Ollama providers (e.g. the Lab's fine-tuned DM from Hugging Face). */
 export const pullModel = (providerId: string, model: string) =>
   call<Record<string, unknown>>(`/api/ollama/${encodeURIComponent(providerId)}/pull`, { method: 'POST', body: JSON.stringify({ model }), timeoutMs: 60_000 });
+
+// ---- Training (HiveMind M9: scopedTraining, trainEvents, trainingWindow, schedules) ----
+export interface Dataset {
+  id: string;
+  name: string;
+  count?: number;
+}
+
+const listOf = <T>(r: unknown, key: string): T[] => (Array.isArray(r) ? r : ((r as Record<string, unknown>)?.[key] as T[]) ?? []);
+const datasetOf = (d: Record<string, any>): Dataset => ({ id: String(d.id), name: String(d.name ?? ''), count: d.count ?? d.items ?? d.size ?? d.itemCount });
+
+/** The dataset by name; created when missing. */
+export async function ensureDataset(name: string): Promise<Dataset> {
+  const found = listOf<Record<string, any>>(await call('/api/datasets'), 'datasets').find((d) => d.name === name);
+  if (found) return datasetOf(found);
+  const made = await call<Record<string, any>>('/api/datasets', { method: 'POST', body: JSON.stringify({ name }) });
+  return datasetOf(made.dataset ?? made);
+}
+
+export async function findDataset(name: string): Promise<Dataset | undefined> {
+  const found = listOf<Record<string, any>>(await call('/api/datasets'), 'datasets').find((d) => d.name === name);
+  return found ? datasetOf(found) : undefined;
+}
+
+export const addDatasetItems = (datasetId: string, items: { messages: ChatMessage[]; meta?: Record<string, unknown> }[]) =>
+  call<{ added?: number }>(`/api/datasets/${encodeURIComponent(datasetId)}/items`, { method: 'POST', body: JSON.stringify({ items }), timeoutMs: 120_000 });
+
+export interface TrainRequest {
+  base: string;
+  name: string;
+  providerId?: string;
+  datasetId: string;
+  epochs?: number;
+  nightly?: boolean;
+  allowSmall?: boolean;
+}
+export interface TrainJob {
+  id: string;
+  state: string;
+  model?: string;
+  error?: string;
+  [k: string]: unknown;
+}
+
+export async function startTraining(req: TrainRequest): Promise<TrainJob> {
+  const r = await call<Record<string, any>>('/api/lab/train', { method: 'POST', body: JSON.stringify(req) });
+  const job = r.job ?? r;
+  return { ...job, id: String(job.id ?? job.jobId), state: job.state ?? job.status ?? 'queued' };
+}
+export async function trainJob(id: string): Promise<TrainJob> {
+  const r = await call<Record<string, any>>(`/api/lab/train/${encodeURIComponent(id)}`);
+  const job = r.job ?? r;
+  return { ...job, id, state: job.state ?? job.status ?? 'unknown' };
+}
+
+export const trainingWindow = () => call<{ start: string; end: string; open: boolean }>('/api/lab/window');
+
+export interface Schedule {
+  time: string;
+  days: number[];
+  enabled: boolean;
+  nextRun?: string;
+}
+export const getSchedule = (workflowId: string) => call<Schedule>(`/api/workflows/${encodeURIComponent(workflowId)}/schedule`);
+export const putSchedule = (workflowId: string, s: Schedule) => call<Schedule>(`/api/workflows/${encodeURIComponent(workflowId)}/schedule`, { method: 'PUT', body: JSON.stringify(s) });
+export const putCanvas = (c: CanvasFile) => call<CanvasFile>(`/api/canvases/${encodeURIComponent(c.id)}`, { method: 'PUT', body: JSON.stringify(c) });

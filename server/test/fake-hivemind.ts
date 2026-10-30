@@ -13,7 +13,12 @@ export interface FakeCall {
   canvasId: string;
   question: string;
   vars: Record<string, string>;
+  /** M9 `modelOverride`: the run's models. */
+  models?: Record<string, { providerId: string; model: string }>;
 }
+
+/** HiveMind M9 (the AI Trainer), all on. */
+export const M9_FEATURES = ['modelOverride', 'nodeInputs', 'scopedTraining', 'trainEvents', 'trainingWindow', 'schedules'];
 
 /**
  * A small stand-in for HiveMind's API (docs/HIVEMIND_CHANGES.md): health with features, canvases, runs with SSE
@@ -29,7 +34,16 @@ export class FakeHiveMind {
   calls: FakeCall[] = [];
   files = new Map<string, Buffer>();
   onRun: (call: FakeCall) => FakeRun | Promise<FakeRun> = () => ({ outputs: {} });
-  private runs = new Map<string, { status: string; outputs: Record<string, any>; events: string[]; done: Promise<void> }>();
+  // M9: datasets, training jobs, the training window and workflow schedules.
+  datasets = new Map<string, { id: string; name: string; items: any[] }>();
+  trainJobs = new Map<string, { id: string; body: any; state: string; model?: string }>();
+  /** The model a finished training job reports. */
+  trainedModel = 'dungeonmind-dm-1';
+  schedules = new Map<string, any>();
+  window = { start: '03:00', end: '08:00', open: false };
+  pulls: { providerId: string; model: string }[] = [];
+  models: { providerId: string; id: string }[] = [{ providerId: 'ollama', id: 'story-24b' }, { providerId: 'ollama', id: 'json-20b' }];
+  private runs = new Map<string, { status: string; call: FakeCall; outputs: Record<string, any>; events: string[]; done: Promise<void> }>();
   private n = 0;
 
   constructor() {
@@ -70,7 +84,7 @@ export class FakeHiveMind {
     if (req.headers.authorization !== `Bearer ${this.token}`) return this.send(res, 401, { error: 'Not logged in' });
 
     let m: RegExpMatchArray | null;
-    if (p === '/api/models') return this.send(res, 200, { models: [{ providerId: 'ollama', id: 'story-24b' }, { providerId: 'ollama', id: 'json-20b' }] });
+    if (p === '/api/models') return this.send(res, 200, { models: this.models });
     if ((m = p.match(/^\/api\/canvases\/([^/]+)$/))) {
       if (req.method === 'PUT') {
         const c = await this.body(req);
@@ -85,13 +99,15 @@ export class FakeHiveMind {
       const b = await this.body(req);
       if (!b.question) return this.send(res, 400, { error: 'Ask a question' });
       if (!this.canvases.has(b.canvasId)) return this.send(res, 404, { error: 'Canvas not found' });
-      const call: FakeCall = { canvasId: b.canvasId, question: b.question, vars: b.vars ?? {} };
+      if (b.models && !this.features.includes('modelOverride')) return this.send(res, 400, { error: 'Unknown field: models' });
+      const call: FakeCall = { canvasId: b.canvasId, question: b.question, vars: b.vars ?? {}, models: b.models };
       this.calls.push(call);
       const id = `r_${++this.n}`;
-      const run = { status: 'running', outputs: {} as Record<string, any>, events: [] as string[], done: Promise.resolve() };
+      const run = { status: 'running', call, outputs: {} as Record<string, any>, events: [] as string[], done: Promise.resolve() };
       run.done = (async () => {
         const answer = await this.onRun(call);
         if (answer.delayMs) await new Promise((r) => setTimeout(r, answer.delayMs));
+        if (answer.stream) run.events.push(JSON.stringify({ type: 'thinking', label: answer.stream.label, text: 'Let me think.' }));
         if (answer.stream) for (const piece of answer.stream.text.match(/.{1,12}/gs) ?? []) run.events.push(JSON.stringify({ type: 'token', label: answer.stream.label, text: piece }));
         if (answer.error) {
           run.events.push(JSON.stringify({ type: 'error', error: answer.error }));
@@ -123,7 +139,12 @@ export class FakeHiveMind {
       const run = this.runs.get(m[1]);
       if (!run) return this.send(res, 404, { error: 'Run not found' });
       if (run.status === 'running') return this.send(res, 409, { error: 'This run is still going' });
-      return this.send(res, 200, { id: m[1], status: run.status, outputs: run.outputs, events: [] });
+      // M9 `nodeInputs`: the exact messages each LLM node sent, keyed by node id.
+      const inputs =
+        url.searchParams.get('inputs') === '1' && this.features.includes('nodeInputs')
+          ? Object.fromEntries(Object.keys(run.outputs).map((label) => [label, { messages: [{ role: 'system', content: `exact system prompt of ${run.call.canvasId}/${label}` }, { role: 'user', content: run.call.question }] }]))
+          : undefined;
+      return this.send(res, 200, { id: m[1], status: run.status, outputs: run.outputs, events: [], ...(inputs ? { inputs } : {}) });
     }
     if ((m = p.match(/^\/api\/memory\/keys\/([^/]+)\/import$/))) {
       const key = decodeURIComponent(m[1]);
@@ -147,6 +168,73 @@ export class FakeHiveMind {
     if ((m = p.match(/^\/api\/memory\/keys\/([^/]+)$/)) && req.method === 'DELETE') {
       this.memory.delete(decodeURIComponent(m[1]));
       return this.send(res, 200, { ok: true });
+    }
+    if ((m = p.match(/^\/api\/ollama\/([^/]+)\/pull$/))) {
+      const b = await this.body(req);
+      this.pulls.push({ providerId: decodeURIComponent(m[1]), model: b.model });
+      return this.send(res, 200, { ok: true });
+    }
+    // ---- M9 ----
+    const has = (f: string) => this.features.includes(f);
+    if (p === '/api/datasets' && has('scopedTraining')) {
+      if (req.method === 'POST') {
+        const b = await this.body(req);
+        const d = { id: `ds_${++this.n}`, name: b.name, items: [] };
+        this.datasets.set(d.id, d);
+        return this.send(res, 200, { id: d.id, name: d.name, count: 0 });
+      }
+      return this.send(res, 200, { datasets: [...this.datasets.values()].map((d) => ({ id: d.id, name: d.name, count: d.items.length })) });
+    }
+    if ((m = p.match(/^\/api\/datasets\/([^/]+)\/items$/)) && has('scopedTraining')) {
+      const d = this.datasets.get(m[1]);
+      if (!d) return this.send(res, 404, { error: 'Dataset not found' });
+      if (req.method === 'POST') {
+        const b = await this.body(req);
+        d.items.push(...b.items);
+        return this.send(res, 200, { added: b.items.length });
+      }
+      if (req.method === 'DELETE') {
+        d.items = [];
+        return this.send(res, 200, { ok: true });
+      }
+      return this.send(res, 200, { items: d.items });
+    }
+    if (p === '/api/lab/train' && req.method === 'POST' && has('scopedTraining')) {
+      const b = await this.body(req);
+      const job = { id: `train_${++this.n}`, body: b, state: 'done', model: this.trainedModel };
+      this.trainJobs.set(job.id, job);
+      return this.send(res, 200, { id: job.id, state: 'queued' });
+    }
+    if ((m = p.match(/^\/api\/lab\/train\/([^/]+)\/events$/)) && has('trainEvents')) {
+      const job = this.trainJobs.get(m[1]);
+      if (!job) return this.send(res, 404, { error: 'Not found' });
+      res.writeHead(200, { 'content-type': 'text/event-stream' });
+      for (const e of [{ state: 'training', step: 1, total: 2, loss: 1.5, eta: 30 }, { log: 'epoch 1 done' }, { step: 2, total: 2, loss: 0.9, eta: 0 }, { state: 'done', model: job.model, sample: { before: 'meh', after: 'better' } }])
+        res.write(`data: ${JSON.stringify(e)}\n\n`);
+      res.write('event: end\ndata: {}\n\n');
+      return res.end();
+    }
+    if ((m = p.match(/^\/api\/lab\/train\/([^/]+)$/)) && has('scopedTraining')) {
+      const job = this.trainJobs.get(m[1]);
+      if (!job) return this.send(res, 404, { error: 'Not found' });
+      if (req.method === 'DELETE') {
+        this.trainJobs.delete(m[1]);
+        return this.send(res, 200, { ok: true });
+      }
+      return this.send(res, 200, { id: job.id, state: job.state, model: job.model });
+    }
+    if (p === '/api/lab/window' && has('trainingWindow')) return this.send(res, 200, this.window);
+    if ((m = p.match(/^\/api\/workflows\/([^/]+)\/schedule$/)) && has('schedules')) {
+      if (req.method === 'PUT') {
+        this.schedules.set(m[1], await this.body(req));
+        return this.send(res, 200, this.schedules.get(m[1]));
+      }
+      if (req.method === 'DELETE') {
+        this.schedules.delete(m[1]);
+        return this.send(res, 200, { ok: true });
+      }
+      const sc = this.schedules.get(m[1]);
+      return sc ? this.send(res, 200, sc) : this.send(res, 404, { error: 'No schedule' });
     }
     if (p === '/api/files/raw') {
       const f = this.files.get(url.searchParams.get('path') ?? '');

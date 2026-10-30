@@ -1,0 +1,40 @@
+{
+  "id": "dnd-report",
+  "name": "DungeonMind: improvement report",
+  "description": "Turns the AI Trainer's findings into a Markdown improvement report to paste into a coding chat (DungeonMind).",
+  "shared": false,
+  "nodes": [
+    {
+      "id": "in",
+      "type": "input",
+      "label": "input",
+      "position": {
+        "x": 0,
+        "y": 40
+      },
+      "config": {}
+    },
+    {
+      "id": "report",
+      "type": "llm",
+      "label": "report",
+      "position": {
+        "x": 300,
+        "y": 120
+      },
+      "config": {
+        "numCtx": 65536,
+        "temperature": 0.3,
+        "system": "You are a senior engineer improving DungeonMind, a D&D site whose AI Dungeon Master runs on HiveMind canvases. You get the errors the judge and the Bookkeeper found in simulated and real games, with example turns, the current prompts and the scoreboard. Think it through, then write ONE Markdown document meant to be pasted into a coding chat. Sections, in this order:\n# DungeonMind improvement report\n## Top errors (most frequent first; for each: what goes wrong, how often, 1-2 real example turns quoted briefly)\n## Prompt changes (concrete edits to scripts/build-canvases.mjs: which canvas and block, the old text, the new text)\n## Code changes (Bookkeeper and engine: file paths such as server/src/game/bookkeeper.ts, server/src/game/engine.ts, server/src/game/turn.ts, what to change and why)\n## Model advice (which DM model to use or train, from the scoreboard)\nBe specific and short. Only suggest what the data supports.",
+        "prompt": "## Scoreboard\n{{vars.scoreboard}}\n\n## Errors with example turns\n{{vars.errors}}\n\n## Current prompts (from scripts/build-canvases.mjs)\n{{vars.prompts}}\n\n{{question}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "in-report",
+      "source": "in",
+      "target": "report"
+    }
+  ]
+}

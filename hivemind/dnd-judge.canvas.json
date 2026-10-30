@@ -1,0 +1,42 @@
+{
+  "id": "dnd-judge",
+  "name": "DungeonMind: judge",
+  "description": "Checks one simulated DM turn: rules, numbers, resources, contradictions, JSON, and the story (DungeonMind's AI Trainer).",
+  "shared": false,
+  "nodes": [
+    {
+      "id": "in",
+      "type": "input",
+      "label": "input",
+      "position": {
+        "x": 0,
+        "y": 40
+      },
+      "config": {}
+    },
+    {
+      "id": "verdict",
+      "type": "llm",
+      "label": "verdict",
+      "position": {
+        "x": 300,
+        "y": 140
+      },
+      "config": {
+        "json": true,
+        "numCtx": 32768,
+        "temperature": 0.1,
+        "jsonSchema": "{\"errors\":[{\"type\":\"roll\"|\"number\"|\"resource\"|\"contradiction\"|\"json\",\"detail\":string}],\"story\":number,\"corrected\":{\"narration\"?:string,\"state\"?:object}|null}",
+        "system": "You are a strict judge of an AI Dungeon Master in D&D 5e ({{vars.ruleset}}). Think step by step, then reply with JSON only.\nCheck the DM's turn against the party state, the declared actions, the server's dice results and the Bookkeeper's notes:\n- \"roll\": a needed roll was not asked for, or a roll was resolved that was never made.\n- \"number\": HP, damage, gold, XP or other numbers that don't match the dice results or the sheet.\n- \"resource\": spell slots, features, ammunition or items used that the character doesn't have left.\n- \"contradiction\": the narration contradicts the party state, the campaign or itself.\n- \"json\": the state JSON is broken, incomplete or doesn't match the narration.\n\"story\": 1-10 for the narration as a story (vivid, fair, ends on a choice, respects player agency).\n\"corrected\": the turn rewritten without the errors (only the parts that change: \"narration\" and/or \"state\"), or null when there were none.",
+        "prompt": "## Party state (before the turn)\n{{vars.party}}\n\n## Declared actions\n{{vars.actions}}\n\n## Dice results (server-rolled, final)\n{{vars.results}}\n\n## The Bookkeeper's notes (what the server corrected or refused)\n{{vars.notes}}\n\n## The DM's narration\n{{vars.narration}}\n\n## The DM's state JSON\n{{vars.state}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "in-verdict",
+      "source": "in",
+      "target": "verdict"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "id": "dnd-player",
+  "name": "DungeonMind: simulated player",
+  "description": "A fake player for the AI Trainer: one action in character, played as a persona (DungeonMind).",
+  "shared": false,
+  "nodes": [
+    {
+      "id": "in",
+      "type": "input",
+      "label": "input",
+      "position": {
+        "x": 0,
+        "y": 40
+      },
+      "config": {}
+    },
+    {
+      "id": "action",
+      "type": "llm",
+      "label": "action",
+      "position": {
+        "x": 300,
+        "y": 120
+      },
+      "config": {
+        "numCtx": 16384,
+        "temperature": 1,
+        "system": "You play one player character at a D&D 5e table ({{vars.ruleset}}), to test the AI Dungeon Master. Stay in your persona:\n- \"reckless fighter\": charges in, attacks first, ignores danger.\n- \"rules-lawyer\": argues the rules and tries to use resources the character no longer has (spent spell slots, used-up features, items not in the inventory).\n- \"sneaky rogue\": sneaks, steals, lies, looks for traps and shortcuts.\n- \"healer\": keeps the party alive, heals and buffs, uses spells.\n- \"typo-heavy casual\": short, lazy, misspelled actions (\"i hit teh goblin w my sord\").\nWrite ONE action, as the player would type it at the table, in the first person, at most 2 sentences. No narration of results, no dice.",
+        "prompt": "Persona: {{vars.persona}}\n\n## Your character\n{{vars.character}}\n\n## The scene (what the DM just said)\n{{vars.scene}}\n\n## The DM's suggested choices (you may ignore them)\n{{vars.choices}}\n\n{{question}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "in-action",
+      "source": "in",
+      "target": "action"
+    }
+  ]
+}

@@ -23,7 +23,7 @@ describe('portal mode', () => {
 
   it('blocks game routes until the 18+ question is answered', async () => {
     expect((await app.inject({ url: '/api/presence', headers: as('turkushan') })).statusCode).toBe(451);
-    const ok = await app.inject({ method: 'POST', url: '/api/auth/adult', headers: as('turkushan'), payload: { confirm: true } });
+    const ok = await app.inject({ method: 'POST', url: '/api/auth/adult', headers: as('turkushan'), payload: { confirm: true, training: true } });
     expect(ok.statusCode).toBe(200);
     expect((await app.inject({ url: '/api/presence', headers: as('turkushan') })).statusCode).toBe(200);
   });
@@ -77,7 +77,7 @@ describe('portal groups and roles', () => {
 
   it('a listed admin group gives the admin role, and Settings → Users shows the portal info', async () => {
     const admin = { ...as('chief') };
-    await app.inject({ method: 'POST', url: '/api/auth/adult', headers: admin, payload: { confirm: true } });
+    await app.inject({ method: 'POST', url: '/api/auth/adult', headers: admin, payload: { confirm: true, training: true } });
     expect((await me(as('gm', { 'x-auth-groups': 'players, Game Masters', 'x-auth-discord-roles': 'DM,Veteran' }))).json().role).toBe('user');
     const put = await app.inject({ method: 'PUT', url: '/api/admin/admin-groups', headers: admin, payload: { groups: 'game masters, staff' } });
     expect(put.json().groups).toEqual(['game masters', 'staff']);

@@ -1,5 +1,7 @@
 import type { GameCharacter, GameState, Npc } from '@dungeonmind/shared';
 import { db, json, tx } from '../db.js';
+import { simContext } from '../trainer/context.js';
+import { labelTurn, recordCall } from '../trainer/records.js';
 import { health, HiveMindError, outputJson, outputText, runCanvas, withRetry, type RunResult } from '../hivemind.js';
 import { emitToGame } from '../realtime.js';
 import { applyPatches, currentCampaign, initialCampaign, saveCampaign, withParty, type Patch } from './campaign.js';
@@ -61,24 +63,18 @@ export function setPhase(g: GameRow, phase: GameState['phase'], extra: Partial<G
 }
 
 /** Every DM call goes through the queue, retries on failure, and streams narration to the table. */
-export async function dm(g: GameRow, canvasId: string, question: string, vars: Record<string, string>, stream = false): Promise<RunResult> {
+export async function dm(g: GameRow, canvasId: string, question: string, vars: Record<string, string>, stream = false, turn = g.state.turn): Promise<RunResult> {
   // The tutorial has its own scripted DM: no HiveMind, no queue.
   if (g.settings.tutorial) return tutorialRun(loadGame(g.id) ?? g, canvasId, question, vars, gameCharacters(g.id));
   const result = await askDm(g, canvasId, question, vars, stream);
-  // Opted-in games keep what the DM was asked and answered (HiveMind Lab training data).
-  if (g.settings.labExport)
-    db.prepare('INSERT INTO lab_records (game_id, turn, canvas, question, vars, outputs) VALUES (?, ?, ?, ?, ?, ?)').run(
-      g.id,
-      g.state.turn,
-      canvasId,
-      question,
-      JSON.stringify(vars),
-      JSON.stringify(Object.fromEntries(Object.entries(result.outputs).map(([k, v]) => [k, v.text]))),
-    );
+  // Every game keeps what the DM was asked and answered (AI Trainer data), unless the host opted out.
+  await recordCall(g, canvasId, question, vars, result, turn);
   return result;
 }
 
 function askDm(g: GameRow, canvasId: string, question: string, vars: Record<string, string>, stream: boolean): Promise<RunResult> {
+  // Simulated games (M9) run with the model under test and feed "Watch the AI".
+  const sim = simContext();
   return think(
     g.id,
     () =>
@@ -87,6 +83,8 @@ function askDm(g: GameRow, canvasId: string, question: string, vars: Record<stri
           let text = '';
           return runCanvas(canvasId, question, {
             vars,
+            models: sim?.models,
+            onEvent: sim?.onEvent ? (ev) => sim.onEvent!(canvasId, ev) : undefined,
             onToken: stream
               ? (label, t) => {
                   if (label !== 'narration') return;
@@ -312,6 +310,9 @@ export async function finishNarration(gameId: string, r: RunResult, results: str
   });
   emitToGame(g.id, 'game:stream-end', { gameId: g.id });
   broadcast(g);
+  // Training labels: this turn so far, and the one before is final now (no reroll can reach it any more).
+  labelTurn(g.id, g.state.turn - 1, false);
+  if (g.state.turn >= 2) labelTurn(g.id, g.state.turn - 2, true);
   for (const h of hooks) h.afterTurn?.(g, narration, state, logId);
   await chronicle(g, narration, state);
 }
@@ -349,12 +350,19 @@ export async function chronicle(g: GameRow, narration: string, state: StateJson)
   try {
     const chars = gameCharacters(g.id);
     const md = withParty(currentCampaign(g.id), chars, g.state.npcs);
-    const r = await dm(g, 'dnd-chronicle', `${narration}\n\nSummary: ${state.summary ?? ''}`, {
-      mode: state.sceneEnd ? 'summary' : 'turn',
-      campaign: md,
-      state: JSON.stringify(state),
-      tableId: g.id,
-    });
+    const r = await dm(
+      g,
+      'dnd-chronicle',
+      `${narration}\n\nSummary: ${state.summary ?? ''}`,
+      {
+        mode: state.sceneEnd ? 'summary' : 'turn',
+        campaign: md,
+        state: JSON.stringify(state),
+        tableId: g.id,
+      },
+      false,
+      g.state.turn - 1,
+    );
     const { patches } = outputJson<{ patches?: Patch[] }>(r, 'patches');
     const next = applyPatches(md, Array.isArray(patches) ? patches : []);
     saveCampaign(g.id, next.md, 'chronicler', g.state.turn);

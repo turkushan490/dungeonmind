@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { GameDetail, LogEntry } from '@dungeonmind/shared';
 import { useMe } from '../me';
 import { playNarration, readAloud, skip, stop, useNowPlaying, type NarratorPrefs } from './narrator';
+import { useVotes } from './votes';
 
 const prefsOf = (p: Record<string, unknown>): NarratorPrefs => (p.narrator as NarratorPrefs) ?? {};
 const autoplayed = new Set<number>();
@@ -57,6 +58,24 @@ export function Narration({ g, e, last }: { g: GameDetail; e: LogEntry; last: bo
           })}
         </p>
       ))}
+      {(g.myRole === 'host' || g.myRole === 'player') && <Thumbs gameId={g.id} logId={e.id} />}
+    </div>
+  );
+}
+
+/** 👍/👎: one vote per player; a 👎 marks the turn as bad for AI training. Click again to take it back. */
+function Thumbs({ gameId, logId }: { gameId: string; logId: number }) {
+  const [votes, vote] = useVotes(gameId);
+  const v = votes[logId];
+  const cls = (on: boolean) => `rounded-full border px-2 text-xs ${on ? 'border-indigo-400 text-indigo-200' : 'border-[#30363d] text-slate-500 opacity-60 group-hover:opacity-100'}`;
+  return (
+    <div className="mt-1 flex justify-end gap-1">
+      <button className={cls(v?.mine === true)} title="Good narration" onClick={() => vote(logId, v?.mine === true ? null : true)}>
+        👍{v?.up ? ` ${v.up}` : ''}
+      </button>
+      <button className={cls(v?.mine === false)} title="Bad narration (used to train the AI DM)" onClick={() => vote(logId, v?.mine === false ? null : false)}>
+        👎{v?.down ? ` ${v.down}` : ''}
+      </button>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { XP_TABLE, type Abilities, type CharacterBuild, type Condition } from '@dungeonmind/shared';
 import { requireUser } from '../auth/index.js';
-import { tx } from '../db.js';
+import { db, tx } from '../db.js';
+import { labelTurn, markRerolled } from '../trainer/records.js';
 import { applyHeal, levelCheck, rest } from '../game/bookkeeper.js';
 import { buildCharacter, buildOf, subclassLevel, validateBuild } from '../game/character.js';
 import { rollDie } from '../game/dice.js';
@@ -11,6 +12,7 @@ import { tally, voters } from '../game/rerolls.js';
 import { broadcast, gameCharacters, loadGame, saveGame, saveGameCharacter } from '../game/store.js';
 import { loadSnapshot, resolveLater } from '../game/turn.js';
 import { rules } from '../rules/index.js';
+import { emitToGame } from '../realtime.js';
 import { gameFor } from './games.js';
 
 export function bookkeepingRoutes(app: FastifyInstance) {
@@ -57,6 +59,28 @@ export function bookkeepingRoutes(app: FastifyInstance) {
     r.g.state.rerollVote.votes[req.user!.id] = !!(req.body as { yes?: boolean })?.yes;
     saveGame(r.g);
     return settleVote(r.g.id) ?? { ok: true };
+  });
+
+  // ---- 👍/👎 on the DM's narration (M9 training labels): one vote per player ----
+  app.get('/api/games/:id/votes', { preHandler: requireUser }, async (req, reply) => {
+    const r = await gameFor(req, reply);
+    if (!r) return;
+    return votesOf(r.g.id, req.user!.id);
+  });
+
+  app.post('/api/games/:id/log/:logId/vote', { preHandler: requireUser }, async (req, reply) => {
+    const r = await gameFor(req, reply, 'member');
+    if (!r) return;
+    const logId = Number((req.params as { logId: string }).logId);
+    const e = db.prepare("SELECT turn FROM game_log WHERE id = ? AND game_id = ? AND kind = 'narration' AND hidden = 0").get(logId, r.g.id) as { turn: number } | undefined;
+    if (!e) return reply.code(404).send({ error: 'No such narration' });
+    const up = (req.body as { up?: boolean | null })?.up;
+    if (up === null || up === undefined) db.prepare('DELETE FROM narration_votes WHERE log_id = ? AND user_id = ?').run(logId, req.user!.id);
+    else db.prepare('INSERT INTO narration_votes (log_id, user_id, up) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET up = excluded.up').run(logId, req.user!.id, up ? 1 : 0);
+    labelTurn(r.g.id, e.turn, r.g.state.turn > e.turn + 1);
+    const counts = votesOf(r.g.id, req.user!.id)[logId] ?? { up: 0, down: 0 };
+    emitToGame(r.g.id, 'game:votes', { gameId: r.g.id, logId, up: counts.up, down: counts.down });
+    return counts;
   });
 
   // ---- Host approvals for big or odd changes ----
@@ -193,6 +217,18 @@ export function bookkeepingRoutes(app: FastifyInstance) {
   });
 }
 
+/** 👍/👎 per narration log id, with the caller's own vote. */
+function votesOf(gameId: string, userId: string): Record<number, { up: number; down: number; mine?: boolean }> {
+  const out: Record<number, { up: number; down: number; mine?: boolean }> = {};
+  for (const v of db.prepare('SELECT v.log_id, v.user_id, v.up FROM narration_votes v JOIN game_log l ON l.id = v.log_id WHERE l.game_id = ?').all(gameId) as Record<string, any>[]) {
+    const o = (out[v.log_id] ??= { up: 0, down: 0 });
+    if (v.up) o.up++;
+    else o.down++;
+    if (v.user_id === userId) o.mine = !!v.up;
+  }
+  return out;
+}
+
 /** Counts the reroll vote; on a pass, the last turn is rolled back to just before narration and told again. */
 function settleVote(gameId: string): { result: 'pass' | 'fail' } | undefined {
   const g = loadGame(gameId)!;
@@ -217,6 +253,7 @@ function settleVote(gameId: string): { result: 'pass' | 'fail' } | undefined {
     broadcast(g);
     return { result: 'fail' };
   }
+  markRerolled(g.id, snap.state.turn);
   tx(() => {
     const left = g.state.rerollsLeft - 1;
     for (const c of snap.characters) saveGameCharacter(g.id, c);

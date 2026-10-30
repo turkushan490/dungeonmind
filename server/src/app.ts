@@ -8,6 +8,8 @@ import { gameRoutes } from './api/games.js';
 import { hivemindRoutes } from './api/hivemind.js';
 import { homebrewRoutes } from './api/homebrew.js';
 import { labRoutes } from './api/lab.js';
+import { trainerRoutes } from './api/trainer.js';
+import { registerNightly } from './trainer/nightly.js';
 import { tokenRoutes } from './api/tokens.js';
 import { registerHomebrew } from './rules/homebrew.js';
 import { rulesRoutes } from './api/rules.js';
@@ -63,6 +65,8 @@ export async function buildApp(opts: { logger?: boolean; web?: boolean; realtime
   homebrewRoutes(app);
   tokenRoutes(app);
   labRoutes(app);
+  trainerRoutes(app);
+  registerNightly();
   jobRoutes(app);
 
   if (opts.realtime !== false) attachRealtime(app);

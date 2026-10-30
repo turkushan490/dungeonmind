@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { config } from '../config.js';
 import { hashPassword, newId, randomToken, sha256, verifyPassword } from '../crypto.js';
 import { db } from '../db.js';
-import { registrationOpen, toUser, type User } from './index.js';
+import { registrationOpen, toUser, TRAINING_REQUIRED, type User } from './index.js';
 
 export const SESSION_COOKIE = 'dm_session';
 const SESSION_DAYS = 30;
@@ -81,14 +81,15 @@ export function sessionRoutes(app: FastifyInstance) {
 export function builtinRoutes(app: FastifyInstance) {
   /** Registration; the 18+ checkbox is part of the form. Admins come from Docker (ADMIN_USERNAME) or Settings → Users. */
   app.post('/api/auth/register', async (req, reply) => {
-    const { username, password, adult } = (req.body ?? {}) as Record<string, unknown>;
+    const { username, password, adult, training } = (req.body ?? {}) as Record<string, unknown>;
     if (!registrationOpen()) return reply.code(403).send({ error: 'Registration is closed. Ask the admin for an account.' });
     const bad = validCredentials(username, password);
     if (bad) return reply.code(400).send({ error: bad });
     if (adult !== true) return reply.code(400).send({ error: 'DungeonMind is for adults (18+) only' });
+    if (training !== true) return reply.code(400).send({ error: TRAINING_REQUIRED });
     if (db.prepare('SELECT 1 FROM users WHERE username = ?').get(username as string)) return reply.code(409).send({ error: 'That name is taken' });
     const id = newId();
-    db.prepare("INSERT INTO users (id, username, pw_hash, role, adult_at) VALUES (?, ?, ?, ?, datetime('now'))").run(
+    db.prepare("INSERT INTO users (id, username, pw_hash, role, adult_at, training_at) VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))").run(
       id,
       username as string,
       await hashPassword(password as string),

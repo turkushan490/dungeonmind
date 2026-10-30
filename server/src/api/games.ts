@@ -12,6 +12,7 @@ import { isRuleset, rules } from '../rules/index.js';
 import { loadCharacter, rolledValues } from './characters.js';
 import { buildCharacter } from '../game/character.js';
 import { startGame } from '../game/turn.js';
+import { recordCall } from '../trainer/records.js';
 
 const int = (v: unknown, min: number, max: number, fallback: number) => {
   const n = Math.round(Number(v));
@@ -34,7 +35,7 @@ export function cleanSettings(input: Partial<GameSettings>, base: GameSettings =
   if (typeof input.wishes === 'string') s.wishes = input.wishes.slice(0, 4000);
   if (typeof input.houseRules === 'string') s.houseRules = input.houseRules.slice(0, 4000);
   if (input.sceneImages !== undefined) s.sceneImages = !!input.sceneImages;
-  if (input.labExport !== undefined) s.labExport = !!input.labExport;
+  if (input.noTraining !== undefined) s.noTraining = !!input.noTraining;
   if (input.formValues && typeof input.formValues === 'object') s.formValues = JSON.parse(JSON.stringify(input.formValues).slice(0, 20_000));
   if (input.pitch && typeof input.pitch === 'object') s.pitch = { title: String(input.pitch.title ?? '').slice(0, 200), hook: String(input.pitch.hook ?? '').slice(0, 2000), tone: input.pitch.tone?.slice(0, 200) };
   return s;
@@ -181,7 +182,7 @@ export function gameRoutes(app: FastifyInstance) {
       if (g.settings.rerolls !== before) g.state.rerollsLeft = g.settings.rerolls;
     } else {
       // During play only the approval thresholds and house rules can change.
-      g.settings = cleanSettings({ approvalXp: body.approvalXp, approvalGold: body.approvalGold, houseRules: body.houseRules, sceneImages: body.sceneImages, labExport: body.labExport }, g.settings);
+      g.settings = cleanSettings({ approvalXp: body.approvalXp, approvalGold: body.approvalGold, houseRules: body.houseRules, sceneImages: body.sceneImages, noTraining: body.noTraining }, g.settings);
     }
     saveGame(g);
     broadcast(g);
@@ -203,7 +204,10 @@ export function gameRoutes(app: FastifyInstance) {
     const { g } = r;
     const wishes = String((req.body as { wishes?: string })?.wishes ?? g.settings.wishes ?? '').slice(0, 4000);
     return background(req, reply, async () => {
-      const out = await withRetry(() => runCanvas('dnd-setup', wishes || 'Surprise me: a dark fantasy adventure.', { vars: { ...setupVars(g), stage: 'pitches', pitch: '' } }));
+      const question = wishes || 'Surprise me: a dark fantasy adventure.';
+      const vars = { ...setupVars(g), stage: 'pitches', pitch: '' };
+      const out = await withRetry(() => runCanvas('dnd-setup', question, { vars }));
+      await recordCall(g, 'dnd-setup', question, vars, out);
       const pitches = (outputJson<{ pitches?: Pitch[] }>(out, 'pitch').pitches ?? [])
         .filter((p) => p?.title)
         .slice(0, 6)
@@ -224,9 +228,10 @@ export function gameRoutes(app: FastifyInstance) {
     if (!p?.title) return reply.code(400).send({ error: 'Pick or write a pitch' });
     g.settings = cleanSettings({ pitch: p }, g.settings);
     return background(req, reply, async () => {
-      const out = await withRetry(() =>
-        runCanvas('dnd-setup', g.settings.wishes || p.title, { vars: { ...setupVars(g), stage: 'form', pitch: `${g.settings.pitch!.title}: ${g.settings.pitch!.hook}` } }),
-      );
+      const question = g.settings.wishes || p.title;
+      const vars = { ...setupVars(g), stage: 'form', pitch: `${g.settings.pitch!.title}: ${g.settings.pitch!.hook}` };
+      const out = await withRetry(() => runCanvas('dnd-setup', question, { vars }));
+      await recordCall(g, 'dnd-setup', question, vars, out);
       const f = outputJson<{ title?: string; summary?: string; fields?: unknown }>(out, 'pitch');
       g.settings.form = { title: f.title ? String(f.title).slice(0, 120) : undefined, summary: f.summary ? String(f.summary).slice(0, 2000) : undefined, fields: cleanFields(f.fields) };
       g.settings.formValues = Object.fromEntries(g.settings.form.fields.map((x) => [x.id, x.default ?? (x.type === 'multi' ? [] : x.type === 'slider' ? (x.min ?? 0) : '')]));

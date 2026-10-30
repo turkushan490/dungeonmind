@@ -1,4 +1,5 @@
 import { randomInt } from 'node:crypto';
+import { simContext } from '../trainer/context.js';
 
 export const DIE_SIDES = [2, 3, 4, 6, 8, 10, 12, 20, 100];
 const MAX_DICE = 100;
@@ -66,7 +67,11 @@ export interface RollResult {
   manual: boolean;
 }
 
-export const rollDie = (sides: number) => randomInt(1, sides + 1);
+/** Server RNG; simulated games (M9) roll seeded dice so a run can be repeated. */
+export const rollDie = (sides: number) => {
+  const rng = simContext()?.rng;
+  return rng ? 1 + Math.floor(rng() * sides) : randomInt(1, sides + 1);
+};
 
 /**
  * Checks values a player typed in for "I roll myself": one integer per die, each in 1..sides.

@@ -9,6 +9,7 @@ import { broadcast, gameCharacters, saveGame, saveGameCharacter } from '../game/
 import { playersOf, resolveLater, retry, startGame, submitAction, activeCharacters } from '../game/turn.js';
 import { HiveMindError, outputText, runCanvas, withRetry } from '../hivemind.js';
 import { emitToGame } from '../realtime.js';
+import { recordCall } from '../trainer/records.js';
 import { gameFor } from './games.js';
 
 /** Per-user rate limit for writes at the table (cheat-proofing and spam). */
@@ -133,21 +134,19 @@ export function tableRoutes(app: FastifyInstance) {
     const { g } = r;
     addLog(g.id, g.state.turn, 'ask', q, req.user!.username);
     const chars = gameCharacters(g.id);
-    void think(g.id, () =>
-      withRetry(() =>
-        runCanvas('dnd-ask', q, {
-          vars: {
-            asker: req.user!.username,
-            tableId: g.id,
-            ruleset: g.ruleset,
-            campaign: campaignFor(g, chars),
-            party: partyJson(g.ruleset, chars, g.state, playersOf(g.id)),
-            recent: recentTurns(g.id, 6000, 4),
-          },
-        }),
-      ),
-    )
-      .then((res) => addLog(g.id, g.state.turn, 'answer', outputText(res, 'answer'), 'DM', { to: req.user!.username }))
+    const vars = {
+      asker: req.user!.username,
+      tableId: g.id,
+      ruleset: g.ruleset,
+      campaign: campaignFor(g, chars),
+      party: partyJson(g.ruleset, chars, g.state, playersOf(g.id)),
+      recent: recentTurns(g.id, 6000, 4),
+    };
+    void think(g.id, () => withRetry(() => runCanvas('dnd-ask', q, { vars })))
+      .then(async (res) => {
+        addLog(g.id, g.state.turn, 'answer', outputText(res, 'answer'), 'DM', { to: req.user!.username });
+        await recordCall(g, 'dnd-ask', q, vars, res);
+      })
       .catch((err) => addLog(g.id, g.state.turn, 'answer', `The DM couldn't answer right now (${(err as Error).message}). Ask again in a moment.`, 'DM', { to: req.user!.username, failed: true }));
     return { ok: true };
   });

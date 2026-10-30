@@ -151,6 +151,63 @@ const MIGRATIONS = [
   ALTER TABLE users ADD COLUMN portal_admin INTEGER;
   ALTER TABLE users ADD COLUMN discord_roles TEXT;
   `,
+  // M9: the AI Trainer. Every DM call is recorded (games can opt out), labelled, reviewed and pushed to HiveMind.
+  `
+  ALTER TABLE lab_records ADD COLUMN node TEXT;
+  ALTER TABLE lab_records ADD COLUMN messages TEXT;
+  ALTER TABLE lab_records ADD COLUMN output TEXT;
+  ALTER TABLE lab_records ADD COLUMN label TEXT NOT NULL DEFAULT 'pending';
+  ALTER TABLE lab_records ADD COLUMN source TEXT NOT NULL DEFAULT 'game';
+  ALTER TABLE lab_records ADD COLUMN corrected TEXT;
+  ALTER TABLE lab_records ADD COLUMN signals TEXT;
+  ALTER TABLE lab_records ADD COLUMN judge TEXT;
+  ALTER TABLE lab_records ADD COLUMN sim_id TEXT;
+  ALTER TABLE lab_records ADD COLUMN model TEXT;
+  ALTER TABLE lab_records ADD COLUMN pushed_at TEXT;
+  CREATE INDEX lab_records_label ON lab_records(label, source);
+  CREATE INDEX lab_records_sim ON lab_records(sim_id);
+  ALTER TABLE users ADD COLUMN training_at TEXT;
+  ALTER TABLE games ADD COLUMN sim INTEGER NOT NULL DEFAULT 0;
+  CREATE TABLE narration_votes (
+    log_id INTEGER NOT NULL REFERENCES game_log(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    up INTEGER NOT NULL,
+    PRIMARY KEY (log_id, user_id)
+  );
+  CREATE TABLE trainer_scenarios (
+    id TEXT PRIMARY KEY,
+    text TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'manual',
+    game_id TEXT,
+    turn INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE UNIQUE INDEX trainer_scenarios_outcome ON trainer_scenarios(game_id, turn) WHERE source = 'outcome';
+  CREATE TABLE trainer_sims (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL DEFAULT 'sim',
+    status TEXT NOT NULL,
+    settings TEXT NOT NULL,
+    results TEXT NOT NULL DEFAULT '{}',
+    error TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    finished_at TEXT
+  );
+  CREATE TABLE trainer_reports (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    md TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL,
+    sim_ids TEXT NOT NULL DEFAULT '[]',
+    error TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE trainer_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data TEXT NOT NULL,
+    at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  `,
 ];
 
 export const db = new DatabaseSync(join(config.dataDir, 'dungeonmind.db'));

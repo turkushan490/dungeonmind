@@ -15,7 +15,7 @@ export async function freshApp(env: Record<string, string> = {}): Promise<Fastif
 
 /** Registers (builtin mode) and returns the session cookie header. */
 export async function register(app: FastifyInstance, username: string, password = 'Password!23'): Promise<string> {
-  const res = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username, password, adult: true } });
+  const res = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username, password, adult: true, training: true } });
   if (res.statusCode !== 200) throw new Error(`register ${username}: ${res.body}`);
   const c = res.cookies.find((c) => c.name === 'dm_session')!;
   return `dm_session=${c.value}`;

@@ -10,6 +10,7 @@ import { DEFAULT_SETTINGS, loadGame, roleIn } from '../game/store.js';
 import { sameName } from '../game/text.js';
 import { mergeNpcs, type StateJson } from '../game/turn.js';
 import { isRuleset, rules } from '../rules/index.js';
+import { toExample, toRecord } from '../trainer/records.js';
 
 /**
  * The Bookkeeper as a service (M13): HiveMind's Lab sends a party and what its AI DM produced, and gets back
@@ -186,37 +187,32 @@ export function labRoutes(app: FastifyInstance) {
   });
 
   // ---- Opt-in export of real games ----
-  /** Games of yours (host) whose host opted in to the Lab. */
+  /** Games of yours (host) that are used for training (all of them, unless the host opted out). */
   app.get('/api/lab/games', { preHandler: requireUser }, async (req) =>
-    (db.prepare("SELECT g.id, g.name, g.ruleset, g.settings, (SELECT COUNT(*) FROM lab_records r WHERE r.game_id = g.id) AS records FROM games g WHERE g.host_id = ?").all(req.user!.id) as Record<string, any>[])
-      .filter((g) => json<GameSettings>(g.settings, DEFAULT_SETTINGS).labExport)
+    (db.prepare("SELECT g.id, g.name, g.ruleset, g.settings, (SELECT COUNT(*) FROM lab_records r WHERE r.game_id = g.id) AS records FROM games g WHERE g.host_id = ? AND g.sim = 0").all(req.user!.id) as Record<string, any>[])
+      .filter((g) => !json<GameSettings>(g.settings, DEFAULT_SETTINGS).noTraining)
       .map((g) => ({ id: g.id, name: g.name, ruleset: g.ruleset, records: g.records })),
   );
 
   /**
-   * One JSON line per DM call: {"messages":[system,user,assistant], "meta":{…, bookkeeper notes}} (chat SFT format).
+   * One JSON line per DM block: {"messages":[system,user,assistant], "meta":{…, label, bookkeeper notes}} (chat SFT format).
    * The Bookkeeper's notes for that turn say what the DM got wrong.
    */
   app.get('/api/lab/games/:id/turns.jsonl', { preHandler: requireUser }, async (req, reply) => {
     const g = loadGame((req.params as { id: string }).id);
     if (!g || roleIn(g, req.user!) !== 'host') return reply.code(404).send({ error: 'Game not found' });
-    if (!g.settings.labExport) return reply.code(403).send({ error: 'The host has not opted this game in to the Lab' });
+    if (g.settings.noTraining) return reply.code(403).send({ error: "The host chose: don't use this game for AI training" });
     const notes = readLog(g.id, { limit: 1_000_000, kinds: ['note', 'refused'] });
     const rows = db.prepare('SELECT * FROM lab_records WHERE game_id = ? ORDER BY id').all(g.id) as Record<string, any>[];
     reply.header('content-type', 'application/x-ndjson; charset=utf-8');
     reply.header('content-disposition', `attachment; filename="dungeonmind-${g.id}.jsonl"`);
     return rows
       .map((r) => {
-        const vars = json<Record<string, string>>(r.vars, {});
-        const outputs = json<Record<string, string>>(r.outputs, {});
+        const rec = toRecord(r, g.ruleset);
         const turnNotes = notes.filter((n) => n.turn === r.turn).map((n) => n.text);
         return JSON.stringify({
-          messages: [
-            { role: 'system', content: `DungeonMind canvas ${r.canvas} (${g.ruleset}). Mode: ${vars.mode ?? '-'}.` },
-            { role: 'user', content: `${r.question}\n\n${Object.entries(vars).filter(([k]) => k !== 'tableId').map(([k, v]) => `## ${k}\n${v}`).join('\n\n')}` },
-            { role: 'assistant', content: Object.entries(outputs).map(([k, v]) => (Object.keys(outputs).length > 1 ? `## ${k}\n${v}` : v)).join('\n\n') },
-          ],
-          meta: { gameId: g.id, turn: r.turn, canvas: r.canvas, at: r.at, bookkeeper: turnNotes, ok: turnNotes.length === 0 },
+          ...toExample(rec),
+          meta: { gameId: g.id, turn: r.turn, canvas: r.canvas, node: rec.node, label: rec.label, at: r.at, bookkeeper: turnNotes, ok: turnNotes.length === 0 },
         });
       })
       .join('\n');

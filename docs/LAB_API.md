@@ -1,6 +1,6 @@
-# DungeonMind Bookkeeper API (for HiveMind's Training Lab)
+# DungeonMind Lab API (Bookkeeper, training records, the AI Trainer)
 
-**Status:** built in DungeonMind M13. This is the contract HiveMind's Lab (docs/HIVEMIND_CHANGES.md, Part 2) codes against when it replaces its mini bookkeeper (`server/src/lab/state.ts`) with DungeonMind's real one, and when it imports real games.
+**Status:** the Bookkeeper API was built in DungeonMind M13; the AI Trainer endpoints and the training records in M9. Since M9 DungeonMind does the game side of training itself (see GUIDE.md §16 and "AI Trainer" below); HiveMind only trains.
 
 DungeonMind → HiveMind is described in HIVEMIND_CHANGES.md. This file is the other direction: **HiveMind's Lab calls DungeonMind**.
 
@@ -88,22 +88,53 @@ Missing roll requests and story quality aren't the Bookkeeper's job: the Lab's L
 
 A real, legal sheet for a fake player. Body: a DungeonMind character build (same as the builder; `abilityMethod` standard or pointbuy). → `{ "character": { … counters, hp … }, "derived": { … } }`, or 400 with `errors` when the build breaks a rule.
 
-## Real games (opt-in)
+## Real games
 
-A host can tick **"Share this game's DM turns with the Lab"** in the game's settings. From then on every DM call of that game is recorded (canvas, question, vars, outputs).
+Every DM call of every game is recorded, unless the host ticked **"Don't use this game for AI training"** (setting `noTraining`). Players accept *"Games you play here are used to train the AI Dungeon Master."* at the 18+ / sign-up gate (`POST /api/auth/register` and `POST /api/auth/adult` need `"training": true`; `GET /api/auth/me` has `trainingAccepted`).
 
-- `GET /api/lab/games` → the token owner's opted-in games: `[{ id, name, ruleset, records }]`.
-- `GET /api/lab/games/:id/turns.jsonl` (host only) → one line per DM call in chat SFT format:
+One record per AI block (`lab_records`): `canvas`, `node`, `messages` (the exact chat messages the block sent, from HiveMind's `GET /api/runs/:id?inputs=1` when it has `nodeInputs`; else a system line plus the question and vars), `output`, `label` (`good` | `bad` | `pending` | `accepted` | `rejected`), `source` (`game` | `sim` | `eval`), `corrected` (the judge's or the admin's correction).
+
+Labels: **bad** when the Bookkeeper refused or noted something that turn, a reroll vote passed, or a player gave the narration a 👎 (`POST /api/games/:id/log/:logId/vote {up: true|false|null}`, one vote per player; `GET /api/games/:id/votes`). **good** when none of that, once the next turn has been told.
+
+- `GET /api/lab/games` → the token owner's games used for training: `[{ id, name, ruleset, records }]`.
+- `GET /api/lab/games/:id/turns.jsonl` (host only) → one line per record in chat SFT format:
 
 ```json
-{"messages":[{"role":"system","content":"DungeonMind canvas dnd-narrate (srd51). Mode: turn."},{"role":"user","content":"Turks (turks): I swing at the hag\n\n## campaign\n…"},{"role":"assistant","content":"## narration\n…\n\n## state\n{…}"}],"meta":{"gameId":"…","turn":4,"canvas":"dnd-narrate","bookkeeper":["Bookkeeper held back Turks HP -3: …"],"ok":false}}
+{"messages":[{"role":"system","content":"…"},{"role":"user","content":"…"},{"role":"assistant","content":"…"}],"meta":{"gameId":"…","turn":4,"canvas":"dnd-narrate","node":"state","label":"bad","bookkeeper":["Bookkeeper held back Turks HP -3: …"],"ok":false}}
 ```
 
-`meta.bookkeeper` lists what the Bookkeeper corrected or held back in that turn; `ok` is true when it had nothing to say. That makes good labels for the review queue.
+The assistant message is the correction when there is one.
+
+## AI Trainer (admin, M9)
+
+All routes need an admin (session or `dm_` token). HiveMind features are detected through its `GET /api/health`; a missing one answers 409 `HiveMind needs updating (<feature>)` or shows as `false` in `features`.
+
+| What | Method + path |
+|---|---|
+| Status: DM model, last result, next run, dataset, window, features | `GET /api/trainer/status` |
+| Settings `{nightly, base, callbackUrl, judgeSample}` (reinstalls `dnd-nightly`) | `PUT /api/trainer/settings` |
+| Train now (push + train + eval + decision) | `POST /api/trainer/train-now` → 202 `{jobId}` |
+| The nightly result from HiveMind's HTTP block | `POST /api/trainer/candidate` |
+| Scenarios | `GET/POST /api/trainer/scenarios`, `PUT/DELETE /api/trainer/scenarios/:id`, `POST …/bulk {text}`, `POST …/ai {theme, count}` (202), `POST …/from-game {gameId}`, `GET /api/trainer/games` |
+| Simulations | `GET/POST /api/trainer/sims {models, games, turns, scenarioIds}`, `GET/DELETE /api/trainer/sims/:id`, `POST /api/trainer/sims/:id/stop` |
+| Review | `GET /api/trainer/records?label=&source=&limit=&offset=`, `PUT /api/trainer/records/:id {action: accept\|edit\|reject, corrected?}`, `DELETE /api/trainer/records/:id` |
+| Reports | `GET/POST /api/trainer/reports {simIds}`, `GET/DELETE /api/trainer/reports/:id`, `GET /api/trainer/reports/:id/download` (.md) |
+| DM model picker | `GET /api/trainer/dm-models` (apply with `POST /api/hivemind/dm-model`) |
+| Watch the AI backlog | `GET /api/trainer/live`, `GET /api/trainer/live/:stream` (live: Socket.IO `trainer:live`, admins only) |
+
+**The candidate.** HiveMind's workflow `dnd-nightly` (a Train block on dataset "DungeonMind DM" with `minNewExamples: 100`, `nightly: true`, waiting until done, then an HTTP block) posts the Train block's output to `/api/trainer/candidate` with `Authorization: Bearer dm_…` (a token DungeonMind creates for this):
+
+```json
+{ "status": "done", "model": "dungeonmind-dm", "jobId": "…", "examples": 140 }
+```
+
+DungeonMind answers 202 at once, then plays the eval simulation (fixed scenarios and seeds, 2 games × 10 turns) with the candidate and with the current DM model (HiveMind `models` run override) and promotes the candidate only if it makes fewer errors per 100 turns AND its JSON valid % is not lower. `status: "skipped"` (too few new examples) is saved as a result line.
+
+**What DungeonMind calls in HiveMind (M9):** `POST /api/runs {…, models}`, `GET /api/runs/:id?inputs=1`, `GET/POST /api/datasets`, `POST /api/datasets/:id/items {items: [{messages, meta}]}`, `POST /api/lab/train {base, name, providerId, datasetId, nightly, allowSmall}`, `GET /api/lab/train/:id`, `GET /api/lab/train/:id/events` (SSE), `GET /api/lab/window`, `PUT/GET /api/workflows/dnd-nightly/schedule {time: "03:00", days, enabled}`, `PUT /api/canvases/dnd-nightly`.
 
 ## The fine-tuned model back in DungeonMind
 
-**Settings → HiveMind → Fine-tuned DM model:** pick the Ollama provider and the model (e.g. `hf.co/turkushan490/dungeonmind-dm-8b-gguf:Q4_K_M`), **Pull and use**. DungeonMind asks HiveMind to pull it (`POST /api/ollama/:providerId/pull`), sets it as the story and JSON model, and reinstalls the canvases (models picked by hand in HiveMind are kept). API: `POST /api/hivemind/dm-model { providerId, model, pull, roles? }` (admin).
+**AI Trainer → DM model** (also in Settings → HiveMind): pick from trained `dungeonmind-*` models, the curated list and models that passed the simulator; models not in Ollama yet are pulled. DungeonMind asks HiveMind to pull it (`POST /api/ollama/:providerId/pull`), sets it as the story and JSON model, and reinstalls the canvases (models picked by hand in HiveMind are kept). API: `POST /api/hivemind/dm-model { providerId, model, pull, roles? }` (admin).
 
 ## Try it
 

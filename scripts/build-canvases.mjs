@@ -266,6 +266,128 @@ Character: {{question}}`,
     ],
     [edge('in', 'scene')],
   ),
+  // ---- M9: the AI Trainer (simulated players, the judge, scenarios, the improvement report) ----
+  canvas(
+    'dnd-player',
+    'DungeonMind: simulated player',
+    'A fake player for the AI Trainer: one action in character, played as a persona (DungeonMind).',
+    [
+      node('in', 'input', 'input', 0),
+      node('action', 'llm', 'action', 300, {
+        numCtx: 16384,
+        temperature: 1,
+        system: `You play one player character at a D&D 5e table ({{vars.ruleset}}), to test the AI Dungeon Master. Stay in your persona:
+- "reckless fighter": charges in, attacks first, ignores danger.
+- "rules-lawyer": argues the rules and tries to use resources the character no longer has (spent spell slots, used-up features, items not in the inventory).
+- "sneaky rogue": sneaks, steals, lies, looks for traps and shortcuts.
+- "healer": keeps the party alive, heals and buffs, uses spells.
+- "typo-heavy casual": short, lazy, misspelled actions ("i hit teh goblin w my sord").
+Write ONE action, as the player would type it at the table, in the first person, at most 2 sentences. No narration of results, no dice.`,
+        prompt: `Persona: {{vars.persona}}
+
+## Your character
+{{vars.character}}
+
+## The scene (what the DM just said)
+{{vars.scene}}
+
+## The DM's suggested choices (you may ignore them)
+{{vars.choices}}
+
+{{question}}`,
+      }),
+    ],
+    [edge('in', 'action')],
+  ),
+  canvas(
+    'dnd-judge',
+    'DungeonMind: judge',
+    "Checks one simulated DM turn: rules, numbers, resources, contradictions, JSON, and the story (DungeonMind's AI Trainer).",
+    [
+      node('in', 'input', 'input', 0),
+      node('verdict', 'llm', 'verdict', 300, {
+        json: true,
+        numCtx: 32768,
+        temperature: 0.1,
+        jsonSchema: `{"errors":[{"type":"roll"|"number"|"resource"|"contradiction"|"json","detail":string}],"story":number,"corrected":{"narration"?:string,"state"?:object}|null}`,
+        system: `You are a strict judge of an AI Dungeon Master in D&D 5e ({{vars.ruleset}}). Think step by step, then reply with JSON only.
+Check the DM's turn against the party state, the declared actions, the server's dice results and the Bookkeeper's notes:
+- "roll": a needed roll was not asked for, or a roll was resolved that was never made.
+- "number": HP, damage, gold, XP or other numbers that don't match the dice results or the sheet.
+- "resource": spell slots, features, ammunition or items used that the character doesn't have left.
+- "contradiction": the narration contradicts the party state, the campaign or itself.
+- "json": the state JSON is broken, incomplete or doesn't match the narration.
+"story": 1-10 for the narration as a story (vivid, fair, ends on a choice, respects player agency).
+"corrected": the turn rewritten without the errors (only the parts that change: "narration" and/or "state"), or null when there were none.`,
+        prompt: `## Party state (before the turn)
+{{vars.party}}
+
+## Declared actions
+{{vars.actions}}
+
+## Dice results (server-rolled, final)
+{{vars.results}}
+
+## The Bookkeeper's notes (what the server corrected or refused)
+{{vars.notes}}
+
+## The DM's narration
+{{vars.narration}}
+
+## The DM's state JSON
+{{vars.state}}`,
+      }),
+    ],
+    [edge('in', 'verdict')],
+  ),
+  canvas(
+    'dnd-scenarios',
+    'DungeonMind: scenarios',
+    "Writes test scenarios (starting situations) for the AI Trainer's simulator (DungeonMind).",
+    [
+      node('in', 'input', 'input', 0),
+      node('scenarios', 'llm', 'scenarios', 300, {
+        json: true,
+        numCtx: 16384,
+        temperature: 0.95,
+        jsonSchema: `{"scenarios":[string]}`,
+        system: `You write starting situations for D&D 5e test games. Each one is 2-4 sentences: where the party is, what is happening, and what pressure forces a choice. Mix fights, social scenes, traps, puzzles, resource-hungry moments (spells, healing, ammunition, gold) and moral choices. ${TONE}
+Reply with JSON only.`,
+        prompt: `Write {{vars.count}} distinct scenarios on this theme: {{question}}`,
+      }),
+    ],
+    [edge('in', 'scenarios')],
+  ),
+  canvas(
+    'dnd-report',
+    'DungeonMind: improvement report',
+    "Turns the AI Trainer's findings into a Markdown improvement report to paste into a coding chat (DungeonMind).",
+    [
+      node('in', 'input', 'input', 0),
+      node('report', 'llm', 'report', 300, {
+        numCtx: 65536,
+        temperature: 0.3,
+        system: `You are a senior engineer improving DungeonMind, a D&D site whose AI Dungeon Master runs on HiveMind canvases. You get the errors the judge and the Bookkeeper found in simulated and real games, with example turns, the current prompts and the scoreboard. Think it through, then write ONE Markdown document meant to be pasted into a coding chat. Sections, in this order:
+# DungeonMind improvement report
+## Top errors (most frequent first; for each: what goes wrong, how often, 1-2 real example turns quoted briefly)
+## Prompt changes (concrete edits to scripts/build-canvases.mjs: which canvas and block, the old text, the new text)
+## Code changes (Bookkeeper and engine: file paths such as server/src/game/bookkeeper.ts, server/src/game/engine.ts, server/src/game/turn.ts, what to change and why)
+## Model advice (which DM model to use or train, from the scoreboard)
+Be specific and short. Only suggest what the data supports.`,
+        prompt: `## Scoreboard
+{{vars.scoreboard}}
+
+## Errors with example turns
+{{vars.errors}}
+
+## Current prompts (from scripts/build-canvases.mjs)
+{{vars.prompts}}
+
+{{question}}`,
+      }),
+    ],
+    [edge('in', 'report')],
+  ),
 ];
 
 for (const c of canvases) writeFileSync(new URL(`../hivemind/${c.id}.canvas.json`, import.meta.url), JSON.stringify(c, null, 2) + '\n');

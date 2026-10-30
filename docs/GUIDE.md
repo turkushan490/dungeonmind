@@ -2,7 +2,7 @@
 
 This is the setup and admin guide. The player guide lives inside the app (**Guide** tab, with screenshots), together with per-ruleset **Rules** pages and a scripted **tutorial** adventure that needs no AI (Lobby → Play the tutorial).
 
-**Contents:** 1 Install · 2 Accounts · 3 Backups · 4 Connect HiveMind · 5 Rules data · 6 Characters · 7 Adventures · 8 Playing · 9 Turn loop & Bookkeeper · 10 Voices · 11 Images · 12 Animations · 13 Homebrew · 14 Phones · 15 Android · 16 HiveMind Lab
+**Contents:** 1 Install · 2 Accounts · 3 Backups · 4 Connect HiveMind · 5 Rules data · 6 Characters · 7 Adventures · 8 Playing · 9 Turn loop & Bookkeeper · 10 Voices · 11 Images · 12 Animations · 13 Homebrew · 14 Phones · 15 Android · 16 AI Trainer
 
 ## 1. Install
 
@@ -42,7 +42,7 @@ The image needs no GPU. The narrator (Kokoro) runs on the CPU; all LLM and image
   proxy_set_header X-Auth-User $auth_user;
   proxy_set_header X-Auth-Email $auth_email;
   ```
-- **18+:** every account answers the age question once (in the registration form, or on the first visit in portal mode and for the Docker admin). Nothing else works until it's answered.
+- **18+:** every account answers the age question once (in the registration form, or on the first visit in portal mode and for the Docker admin). Nothing else works until it's answered. The same gate shows: *Games you play here are used to train the AI Dungeon Master.* Accepting it is stored; accounts made before it see the gate once more.
 
 ## 3. Backups
 
@@ -186,10 +186,30 @@ The whole app works on a phone: the table's three panes become swipeable tabs (S
 
 The Android app is a Capacitor shell in [`android/`](../android) (see its README). GitHub Actions builds the APK on changes and attaches it to releases on `v*` tags. Install it, enter your server address once, and log in on your server's own login page (both auth modes). It shows the same app with a bottom tab bar; Settings → Change server switches servers. There are no push notifications; invites and notices appear in the app.
 
-## 16. HiveMind Lab (training a faster DM)
+## 16. AI Trainer (teaching the DM)
 
-HiveMind's Training Lab simulates games, scores models and fine-tunes a fast DM model. DungeonMind helps in three ways (details and JSON in [LAB_API.md](LAB_API.md)):
+Admins get **AI Trainer** in the top bar. DungeonMind owns the game side (collecting real games, simulating with its real engine, review, scenarios, improvement reports, nightly promotion); HiveMind does the training itself (datasets, training jobs, schedules, models). Parts that need a newer HiveMind say **"HiveMind needs updating"** instead of failing; the HiveMind features are `modelOverride`, `nodeInputs`, `scopedTraining`, `trainEvents`, `trainingWindow` and `schedules` (from HiveMind's health check). API details: [LAB_API.md](LAB_API.md).
 
-1. **The Bookkeeper as the judge:** the Lab sends each simulated turn (adjudication + state JSON) to `POST /api/lab/bookkeeper/check` with a DungeonMind API token (Settings → API tokens) and gets typed errors (resources used up, invented bonuses, HP without dice, …) and the party after the turn.
-2. **Real games, opt-in:** hosts can tick "Share this game's DM turns with the Lab"; the Lab downloads them as chat JSONL with the Bookkeeper's notes as labels.
-3. **The fine-tuned model as the default:** Settings → HiveMind → Fine-tuned DM model → **Pull and use**.
+**Collecting.** Every HiveMind call of every game is recorded, one record per AI block: narrate, adjudicate, chronicle, setup and Ask the DM. A record keeps the exact messages the block sent (with `nodeInputs`; otherwise the question and the inputs) and the answer. Hosts can tick **"Don't use this game for AI training"** in the game settings. The tutorial and opted-out games record nothing.
+
+**Labels.** A turn is **bad** when the Bookkeeper refused or corrected something, a reroll vote passed, or a player gave its narration a 👎 (every narration has 👍/👎, one vote per player). It is **good** when none of that happened, once the next turn is told. After review a record is **accepted** or **rejected**.
+
+**The page:**
+
+- **Status:** the current DM model, last night's result ("trained on N new examples, X vs Y errors/100 → now your DM", or why the old one was kept), the next run, the dataset size and HiveMind's training window (change it in HiveMind → Settings → Training). **Train now** and **Nightly training on/off**. Under *Training settings*: the base model (default `unsloth/Qwen3-8B`) and the address HiveMind reports back to.
+- **Scenarios:** starting situations for simulated games. Add, edit, delete, bulk add (one per line), **Write 20 with AI** from a theme, **From a campaign** (a game's current scene). The situation just before each real turn labelled bad is added by itself.
+- **Simulate:** fake players (reckless fighter, rules-lawyer who cheats resources, sneaky rogue, healer, typo-heavy casual) play real games through the real engine, Bookkeeper and canvases, with seeded dice. Sim games are hidden from the lobby. Pick DM models to compare, games, turns and scenarios. The judge (canvas `dnd-judge`) checks every turn the Bookkeeper flags. The scoreboard: JSON valid %, rules/number/resource errors per 100 turns, story score, tokens/s and seconds per turn. Runs can be stopped and deleted (with their games and records).
+- **Review:** the queue of bad records: accept the judge's correction, edit it, or reject it. Any record can be deleted.
+- **Report:** **Make improvement report** over the runs ticked under Simulate plus the bad records of real games. A Markdown document (top errors with example turns, prompt changes for `scripts/build-canvases.mjs`, Bookkeeper/engine code changes, model advice) to paste into a coding chat: shown rendered, copy, download as .md, kept in a history list.
+- **DM model:** a restricted picker (also in Settings → HiveMind): trained `dungeonmind-*` models, the curated list (Wayfarer 2 12B, Qwen3 8B, Qwen3.5 9B) and models with ≥ 90% valid JSON over ≥ 20 simulated turns.
+- **Watch the AI** (👁 on anything running): player actions, the DM's tokens and thinking, the Bookkeeper and the judge for simulations; the loss chart, step/ETA, log lines and a before/after sample for training; the step list (push → train → eval → decision) for the nightly run; the report as it is written. It goes through Socket.IO to admins only; the HiveMind token never reaches the browser.
+
+**Nightly.** With nightly training on:
+
+1. **02:45** DungeonMind pushes new good and accepted records to the HiveMind dataset **"DungeonMind DM"** as chat examples (system/user/assistant; the correction when there is one). Each record goes once.
+2. **03:00** HiveMind's workflow **"DungeonMind: nightly training"** (`dnd-nightly`, installed by *Install / update canvases* and whenever the Trainer settings change) trains when there are at least 100 new examples, inside the training window, then posts the result to `<your DungeonMind address>/api/trainer/candidate` with an API token DungeonMind made for it.
+3. DungeonMind plays the eval simulation (two fixed scenarios with fixed dice, 2 games × 10 turns) with the candidate and with the current DM model, and **promotes the candidate only if it makes fewer errors per 100 turns and its JSON is valid at least as often**. Either way a result line and a report are saved.
+
+**Train now** runs the same pipeline straight away (HiveMind still applies its window rules).
+
+The Bookkeeper API for other programs (`POST /api/lab/bookkeeper/check` and friends) and the JSONL export of a game are still there: see [LAB_API.md](LAB_API.md).

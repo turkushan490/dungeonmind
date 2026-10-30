@@ -78,9 +78,9 @@ describe('ensureAdmin', () => {
 
   it('lets the admin close registration', async () => {
     const cookie = cookieOf(await login('boss', 'weak'));
-    await app.inject({ method: 'POST', url: '/api/auth/adult', headers: { cookie }, payload: { confirm: true } });
+    await app.inject({ method: 'POST', url: '/api/auth/adult', headers: { cookie }, payload: { confirm: true, training: true } });
     await app.inject({ method: 'PUT', url: '/api/admin/registration', headers: { cookie }, payload: { open: false } });
-    const res = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: 'late', password: 'Password!23', adult: true } });
+    const res = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { username: 'late', password: 'Password!23', adult: true, training: true } });
     expect(res.statusCode).toBe(403);
   });
 

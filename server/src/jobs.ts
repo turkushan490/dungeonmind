@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { requireUser } from './auth/index.js';
 import { newId } from './crypto.js';
+import { getSetting, setSetting } from './db.js';
 import { HiveMindError } from './hivemind.js';
 
 /**
@@ -49,4 +50,41 @@ export function jobRoutes(app: FastifyInstance) {
     if (!job || job.userId !== req.user!.id) return reply.code(404).send({ error: 'That job is gone (the server restarted?). Try again.' });
     return { status: job.status, result: job.result, error: job.error };
   });
+}
+
+// ---- A small persistent scheduler (M9): daily tasks at a local HH:MM, checked every minute ----
+interface Daily {
+  name: string;
+  /** "HH:MM", or undefined while the task is switched off. */
+  time: () => string | undefined;
+  run: () => Promise<unknown>;
+}
+const daily: Daily[] = [];
+
+export const everyDay = (name: string, time: Daily['time'], run: Daily['run']) => void daily.push({ name, time, run });
+
+const pad = (n: number) => String(n).padStart(2, '0');
+const localDay = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+/**
+ * Runs each task once per day, at its time or within the hour after it (a restart at 02:50 still pushes at 02:45's
+ * task). The last run day is stored, so a restart never runs a task twice.
+ */
+export async function tick(now = new Date()) {
+  for (const d of daily) {
+    const t = d.time();
+    if (!t) continue;
+    const [h, m] = t.split(':').map(Number);
+    const late = now.getHours() * 60 + now.getMinutes() - (h * 60 + m);
+    const key = `jobs.lastRun.${d.name}`;
+    if (late < 0 || late >= 60 || getSetting(key) === localDay(now)) continue;
+    setSetting(key, localDay(now));
+    await d.run().catch((err) => console.error(`Scheduled task ${d.name} failed:`, (err as Error).message));
+  }
+}
+
+export function startScheduler() {
+  const timer = setInterval(() => void tick(), 60_000);
+  timer.unref();
+  return timer;
 }

@@ -11,6 +11,7 @@ import { SettingsPage } from './pages/Settings';
 import { HomebrewPage } from './pages/Homebrew';
 import { GuidePage } from './pages/Guide';
 import { RulesPage } from './pages/Rules';
+import { TrainerPage } from './pages/Trainer';
 import { GameSetup } from './pages/GameSetup';
 import { Table } from './table/Table';
 import { NewAdventure } from './pages/NewAdventure';
@@ -68,7 +69,7 @@ export function App() {
         <Toasts />
       </>
     );
-  if (!me.adult) return <AgeGate onDone={load} logoutUrl={me.logoutUrl} />;
+  if (!me.adult || !me.trainingAccepted) return <AgeGate onDone={load} logoutUrl={me.logoutUrl} />;
 
   const logout = async () => {
     closeSocket();
@@ -88,6 +89,7 @@ export function App() {
     location.reload();
   };
 
+  const nav: [string, string][] = me.role === 'admin' ? [...NAV.slice(0, -1), ['/trainer', 'AI Trainer'], NAV.at(-1)!] : NAV;
   const table = match('/table/:id', path);
   const gameSetup = match('/games/:id', path);
   const rulesPage = match('/rules/:ruleset', path) as { ruleset: 'srd51' | 'srd52' } | null;
@@ -104,7 +106,7 @@ export function App() {
               <span className="font-serif text-xl font-semibold tracking-wide text-indigo-100">DungeonMind</span>
             </button>
             <nav className="dm-topnav order-last flex w-full gap-1 overflow-x-auto sm:order-none sm:ml-4 sm:w-auto">
-              {NAV.map(([to, label]) => (
+              {nav.map(([to, label]) => (
                 <button
                   key={to}
                   onClick={() => navigate(to)}
@@ -137,6 +139,7 @@ export function App() {
         {path === '/settings' && <SettingsPage />}
         {path === '/homebrew' && <HomebrewPage />}
         {path === '/guide' && <GuidePage />}
+        {path === '/trainer' && me.role === 'admin' && <TrainerPage />}
         {rulesPage && (rulesPage.ruleset === 'srd51' || rulesPage.ruleset === 'srd52') && <RulesPage ruleset={rulesPage.ruleset} />}
         {table && <Table id={table.id} />}
         {path === '/adventures/new' && <NewAdventure />}
@@ -148,7 +151,7 @@ export function App() {
       </div>
       {!table && isNative() && (
         <nav className="dm-bottomnav fixed inset-x-0 bottom-0 z-30 flex border-t border-[#30363d] bg-[#161b22]">
-          {NAV.map(([to, label]) => (
+          {nav.map(([to, label]) => (
             <button key={to} onClick={() => navigate(to)} className={`flex-1 py-3 text-xs ${(to === '/' ? path === '/' : path.startsWith(to)) ? 'text-indigo-300' : 'text-slate-400'}`}>
               {label}
             </button>

@@ -83,8 +83,8 @@ describe('Bookkeeper API for the Lab judge', () => {
   });
 });
 
-describe('opt-in export of real games', () => {
-  it('records DM calls of opted-in games and exports them as chat JSONL with the Bookkeeper notes', async () => {
+describe('export of real games', () => {
+  it('records the DM calls of every game and exports them as chat JSONL with the Bookkeeper notes', async () => {
     const t = await setupGame(app);
     hm.onRun = (c) =>
       c.canvasId === 'dnd-narrate'
@@ -93,7 +93,6 @@ describe('opt-in export of real games', () => {
           ? { outputs: { patches: '{"patches":[]}' } }
           : { outputs: {} };
     const hostCookie = t.host;
-    await t.as(hostCookie, 'PUT', `/api/games/${t.id}`, { labExport: true });
     await t.as(hostCookie, 'POST', `/api/games/${t.id}/start`);
     const turn = await import('../src/game/turn.js');
     await turn.settled(t.id);

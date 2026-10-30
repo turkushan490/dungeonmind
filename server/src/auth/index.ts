@@ -94,6 +94,10 @@ export async function requireAdmin(req: FastifyRequest, reply: FastifyReply) {
   if (req.user!.role !== 'admin') return reply.code(403).send({ error: 'Admins only' });
 }
 
+export const TRAINING_DISCLAIMER = 'Games you play here are used to train the AI Dungeon Master.';
+export const TRAINING_REQUIRED = `Please accept: ${TRAINING_DISCLAIMER}`;
+export const trainingAccepted = (userId: string) => !!(db.prepare('SELECT training_at FROM users WHERE id = ?').get(userId) as { training_at: string | null } | undefined)?.training_at;
+
 export const registrationOpen = () => (getSetting('registration') ?? 'open') === 'open';
 
 export function prefsOf(userId: string): Record<string, unknown> {
@@ -116,6 +120,7 @@ export function authRoutes(app: FastifyInstance) {
       username: user.username,
       role: user.role,
       adult: !!user.adultAt,
+      trainingAccepted: trainingAccepted(user.id),
       authMode: config.authMode,
       adminSession: config.authMode === 'portal' && !req.headers.authorization && !!sessionUser(req) ? true : undefined,
       logoutUrl: config.authMode === 'portal' ? portalLogoutUrl(req.headers) : undefined,
@@ -123,12 +128,17 @@ export function authRoutes(app: FastifyInstance) {
     };
   });
 
-  /** The 18+ gate: asked once, at registration (login mode) or at the first visit (portal mode, the Docker admin). */
+  /**
+   * The 18+ gate: asked once, at registration (login mode) or at the first visit (portal mode, the Docker admin).
+   * It also shows the training disclaimer; accepting it is stored (M9). Older accounts see the gate once more for it.
+   */
   app.post('/api/auth/adult', async (req, reply) => {
     const user = authenticate(req);
     if (!user) return reply.code(401).send({ error: 'Not logged in' });
-    if ((req.body as { confirm?: boolean } | undefined)?.confirm !== true) return reply.code(400).send({ error: 'DungeonMind is for adults (18+) only' });
-    db.prepare("UPDATE users SET adult_at = datetime('now') WHERE id = ? AND adult_at IS NULL").run(user.id);
+    const body = (req.body ?? {}) as { confirm?: boolean; training?: boolean };
+    if (body.confirm !== true) return reply.code(400).send({ error: 'DungeonMind is for adults (18+) only' });
+    if (body.training !== true) return reply.code(400).send({ error: TRAINING_REQUIRED });
+    db.prepare("UPDATE users SET adult_at = COALESCE(adult_at, datetime('now')), training_at = COALESCE(training_at, datetime('now')) WHERE id = ?").run(user.id);
     return { ok: true };
   });
 

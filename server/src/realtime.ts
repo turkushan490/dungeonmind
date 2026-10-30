@@ -47,6 +47,8 @@ export function attachRealtime(app: FastifyInstance) {
     const user = socket.data.user as User;
     socket.join('lobby');
     socket.join(`user:${user.id}`);
+    // The AI Trainer's live feed (M9) goes to admins only.
+    if (user.role === 'admin') socket.join('admins');
     const entry = online.get(user.id) ?? { user, sockets: new Set(), where: 'lobby' };
     entry.sockets.add(socket.id);
     online.set(user.id, entry);
@@ -81,5 +83,6 @@ export function attachRealtime(app: FastifyInstance) {
 
 export const emitToGame = (gameId: string, event: string, payload: unknown) => io?.to(`game:${gameId}`).emit(event, payload);
 export const emitToUser = (userId: string, event: string, payload: unknown) => io?.to(`user:${userId}`).emit(event, payload);
+export const emitToAdmins = (event: string, payload: unknown) => io?.to('admins').emit(event, payload);
 export const emitToLobby = (event: string, payload: unknown) => io?.to('lobby').emit(event, payload);
 export const isOnline = (userId: string) => online.has(userId);

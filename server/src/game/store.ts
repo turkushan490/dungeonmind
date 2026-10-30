@@ -133,7 +133,7 @@ export function summaries(where: string, ...args: (string | number)[]): GameSumm
       .prepare(
         `SELECT g.id, g.name, g.ruleset, g.status, g.visibility, g.updated_at, u.username AS host,
           (SELECT COUNT(*) FROM game_members m WHERE m.game_id = g.id AND m.status = 'joined') AS players
-         FROM games g JOIN users u ON u.id = g.host_id WHERE ${where} ORDER BY g.updated_at DESC LIMIT 100`,
+         FROM games g JOIN users u ON u.id = g.host_id WHERE g.sim = 0 AND (${where}) ORDER BY g.updated_at DESC LIMIT 100`,
       )
       .all(...args) as Record<string, any>[]
   ).map((r) => ({ id: r.id, name: r.name, ruleset: r.ruleset, status: r.status, visibility: r.visibility, host: r.host, players: r.players, updatedAt: r.updated_at }));

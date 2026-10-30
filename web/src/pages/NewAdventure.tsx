@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { RULESET_NAMES, type Ruleset } from '@dungeonmind/shared';
 import { api } from '../api';
 import { navigate } from '../router';
+import { TRAINING_DISCLAIMER } from './Login';
 
 export function SettingsFields({ v, set, locked }: { v: Record<string, any>; set: (patch: Record<string, any>) => void; locked?: boolean }) {
   return (
@@ -48,10 +49,11 @@ export function SettingsFields({ v, set, locked }: { v: Record<string, any>; set
         <input type="checkbox" className="accent-indigo-500" checked={v.sceneImages !== false} onChange={(e) => set({ sceneImages: e.target.checked })} />
         Illustrate new scenes (HiveMind images)
       </label>
-      <label className="flex items-center gap-2 text-sm" title="The DM's prompts and answers of this game may be exported as training data for HiveMind's Lab">
-        <input type="checkbox" className="accent-indigo-500" checked={!!v.labExport} onChange={(e) => set({ labExport: e.target.checked })} />
-        Share this game's DM turns with the Lab (opt-in)
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" className="accent-indigo-500" checked={!!v.noTraining} onChange={(e) => set({ noTraining: e.target.checked })} />
+        Don't use this game for AI training
       </label>
+      <p className="text-xs text-slate-500 sm:col-span-3">{TRAINING_DISCLAIMER}</p>
     </div>
   );
 }

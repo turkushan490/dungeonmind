@@ -1,0 +1,42 @@
+{
+  "id": "dnd-scenarios",
+  "name": "DungeonMind: scenarios",
+  "description": "Writes test scenarios (starting situations) for the AI Trainer's simulator (DungeonMind).",
+  "shared": false,
+  "nodes": [
+    {
+      "id": "in",
+      "type": "input",
+      "label": "input",
+      "position": {
+        "x": 0,
+        "y": 40
+      },
+      "config": {}
+    },
+    {
+      "id": "scenarios",
+      "type": "llm",
+      "label": "scenarios",
+      "position": {
+        "x": 300,
+        "y": 180
+      },
+      "config": {
+        "json": true,
+        "numCtx": 16384,
+        "temperature": 0.95,
+        "jsonSchema": "{\"scenarios\":[string]}",
+        "system": "You write starting situations for D&D 5e test games. Each one is 2-4 sentences: where the party is, what is happening, and what pressure forces a choice. Mix fights, social scenes, traps, puzzles, resource-hungry moments (spells, healing, ammunition, gold) and moral choices. Tone: dark, mature, grounded fantasy. Vivid but concise. Second person for the party (\"you\"), third person for NPCs. Players may write with typos; understand what they mean. Everything you write is in English.\nReply with JSON only.",
+        "prompt": "Write {{vars.count}} distinct scenarios on this theme: {{question}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "in-scenarios",
+      "source": "in",
+      "target": "scenarios"
+    }
+  ]
+}

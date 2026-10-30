@@ -16,6 +16,9 @@ export function Login({ portal, registration, onDone }: { portal: boolean; regis
   return <LoginForm registration={registration} onDone={onDone} />;
 }
 
+/** Shown on the 18+ / sign-up gate (accepting it is stored), in the lobby and in the game settings. */
+export const TRAINING_DISCLAIMER = 'Games you play here are used to train the AI Dungeon Master.';
+
 const PASSWORD_HINT = 'Password (5+ characters, 1 capital, 1 symbol)';
 
 /** Portal mode: the Docker admin account (ADMIN_USERNAME / ADMIN_PASSWORD). Its session wins over the portal until dropped. */
@@ -55,7 +58,7 @@ function LoginForm({ registration, onDone }: { registration: boolean; onDone: ()
     e.preventDefault();
     setError('');
     try {
-      await api(mode === 'login' ? '/api/auth/login' : '/api/auth/register', { body: { username, password, adult }, quiet: true });
+      await api(mode === 'login' ? '/api/auth/login' : '/api/auth/register', { body: { username, password, adult, training: adult }, quiet: true });
       onDone();
     } catch (err) {
       setError((err as Error).message);
@@ -81,7 +84,9 @@ function LoginForm({ registration, onDone }: { registration: boolean; onDone: ()
         {mode === 'register' && (
           <label className="flex items-start gap-2 text-sm text-slate-300">
             <input type="checkbox" className="mt-1 accent-indigo-500" checked={adult} onChange={(e) => setAdult(e.target.checked)} />
-            <span>I am 18 or older. DungeonMind tells dark, mature stories (violence, horror, death).</span>
+            <span>
+              I am 18 or older. DungeonMind tells dark, mature stories (violence, horror, death). <b>{TRAINING_DISCLAIMER}</b>
+            </span>
           </label>
         )}
         {error && <p className="text-sm text-red-400">{error}</p>}
