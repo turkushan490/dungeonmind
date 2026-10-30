@@ -42,6 +42,8 @@ jobs:
           ./gradlew --no-daemon assembleDebug
           mkdir -p ../dist
           cp app/build/outputs/apk/debug/app-debug.apk ../dist/dungeonmind-${VERSION_NAME}.apk
+          # A fixed name too, so the site's download button can link to releases/latest/download/dungeonmind.apk.
+          cp app/build/outputs/apk/debug/app-debug.apk ../dist/dungeonmind.apk
       # Optional: a signed release APK when the repo has the ANDROID_KEYSTORE_BASE64 secret (+ passwords, alias).
       - name: Build a signed release APK
         if: env.HAS_KEYSTORE == 'true'
@@ -57,6 +59,7 @@ jobs:
           export ANDROID_KEYSTORE="$RUNNER_TEMP/release.jks"
           cd android && ./gradlew --no-daemon assembleRelease
           cp app/build/outputs/apk/release/app-release.apk ../dist/dungeonmind-${VERSION_NAME}-release.apk
+          cp app/build/outputs/apk/release/app-release.apk ../dist/dungeonmind.apk
       - uses: actions/upload-artifact@v4
         with:
           name: dungeonmind-apk

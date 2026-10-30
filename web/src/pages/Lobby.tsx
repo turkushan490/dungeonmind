@@ -5,7 +5,7 @@ import { useMe } from '../me';
 import { toast } from '../notify';
 import { navigate } from '../router';
 import { getSocket } from '../socket';
-import { TRAINING_DISCLAIMER } from './Login';
+import { AppDownload, TRAINING_DISCLAIMER } from './Login';
 
 function where(w: string) {
   if (w === 'lobby') return 'in the lobby';
@@ -160,6 +160,7 @@ export function Lobby() {
           </button>
         </section>
         <p className="px-1 text-xs text-slate-500">{TRAINING_DISCLAIMER} Hosts can switch it off per game.</p>
+        <AppDownload className="w-full justify-center" />
         <section className="card">
           <h2 className="rune-title mb-2">Characters</h2>
           <button className="btn-ghost w-full" onClick={() => navigate('/characters')}>

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { api } from '../api';
+import { isNative } from '../native';
 
 /** Login mode: log in, or register. Registration includes the 18+ question. Portal mode: only the Docker admin logs in here. */
 export function Login({ portal, registration, onDone }: { portal: boolean; registration: boolean; onDone: () => void }) {
@@ -119,7 +120,20 @@ export function Landing() {
         <li>🎲 Server dice or your own</li>
         <li>🔊 A narrator voice for every NPC</li>
       </ul>
+      <AppDownload className="mt-4" />
     </div>
+  );
+}
+
+/** The newest Android app from GitHub Releases (the android workflow attaches it as dungeonmind.apk). Hidden inside the app itself. */
+export const APK_URL = 'https://github.com/turkushan490/dungeonmind/releases/latest/download/dungeonmind.apk';
+
+export function AppDownload({ className = '' }: { className?: string }) {
+  if (isNative()) return null;
+  return (
+    <a className={`btn inline-flex items-center gap-2 ${className}`} href={APK_URL} rel="noreferrer">
+      📱 Download Android app
+    </a>
   );
 }
 
