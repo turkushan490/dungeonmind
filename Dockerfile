@@ -38,7 +38,8 @@ CMD ["node", "--disable-warning=ExperimentalWarning", "server/dist/main.js"]
 FROM runtime AS full
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv && rm -rf /var/lib/apt/lists/* \
  && python3 -m venv /opt/chatterbox \
- && /opt/chatterbox/bin/pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu \
+ && /opt/chatterbox/bin/pip install --no-cache-dir --upgrade pip \
+ && /opt/chatterbox/bin/pip install --no-cache-dir torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu \
  && /opt/chatterbox/bin/pip install --no-cache-dir chatterbox-tts
 COPY docker ./docker
 ENV TTS_ENGINE=chatterbox
