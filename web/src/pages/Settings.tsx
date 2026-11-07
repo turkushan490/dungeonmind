@@ -419,6 +419,10 @@ export function Reading() {
           <input type="checkbox" className="accent-indigo-500" checked={p.animations !== false} onChange={(e) => set({ animations: e.target.checked })} />
           Animations (dice, ink text, effects)
         </label>
+        <label className="flex items-end gap-2 pb-2 text-sm" title="Physics dice that land on the real roll. Heavier on older phones; rolls with a d4 or d100 use the flat dice.">
+          <input type="checkbox" className="accent-indigo-500" disabled={p.animations === false} checked={!!p.dice3d && p.animations !== false} onChange={(e) => set({ dice3d: e.target.checked })} />
+          3D dice
+        </label>
       </div>
       <p className="story rounded-md border border-[#30363d] bg-[#0d1117] p-3">The torchlight gutters. Somewhere below, something old is waking.</p>
     </section>

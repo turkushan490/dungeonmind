@@ -175,7 +175,7 @@ Every turn runs on the server, step by step, and every step is in the story log:
 
 ## 12. Animations
 
-- **Dice** for every roll at the table, for everyone: the dice tumble, then land on the **server's real faces**, each with its own size (a 2d6+1d4 shows two d6 and a d4). With advantage or disadvantage both d20s show and the dropped one is dimmed. Gold on a critical, red on a natural 1, ✋ when the player rolled their own dice. With reduced motion the dice show their faces at once.
+- **Dice** for every roll at the table, for everyone: the dice tumble, then land on the **server's real faces**, each with its own size (a 2d6+1d4 shows two d6 and a d4). With advantage or disadvantage both d20s show and the dropped one is dimmed. Gold on a critical, red on a natural 1, ✋ when the player rolled their own dice. With reduced motion the dice show their faces at once. **Settings → 3D dice** swaps in physics dice ([`@3d-dice/dice-box-threejs`](https://github.com/3d-dice/dice-box-threejs), MIT) that land on the server's faces; rolls with a d4 or d100 keep the flat dice, since the 3D ones can't land on those reliably. three.js only loads on the first 3D roll.
 - **Ink text:** a new narration writes itself out word by word, and keeps pace with the narrator voice when it's playing.
 - **Effects:** HP bars shake and flash red on damage and glow green on healing, spent spell-slot pips fade out, and a level-up bursts gold.
 - Turn them off in **Settings → Reading → Animations**; the system "reduce motion" setting is respected too.
