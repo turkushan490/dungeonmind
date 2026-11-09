@@ -1,4 +1,4 @@
-import { SKILLS, type Ability, type GameCharacter, type PendingRoll } from '@dungeonmind/shared';
+import { SKILLS, type Ability, type GameCharacter, type PendingRoll, type RollLogData } from '@dungeonmind/shared';
 import { db, tx } from '../db.js';
 import { outputJson } from '../hivemind.js';
 import { rules } from '../rules/index.js';
@@ -9,7 +9,7 @@ import { grantConditions, resistances } from './features.js';
 import { rollInitiative, nextRound, pruneCombat } from './initiative.js';
 import { addLog, readLog } from './log.js';
 import { campaignFor, partyJson, recentTurns } from './prompt.js';
-import { buildRolls, conditionAdv, ready, resolveRoll, rollEffects, type Adjudication } from './rolls.js';
+import { abilityParts, buildRolls, conditionAdv, conditionAdvSources, ready, resolveRoll, rollEffects, type Adjudication } from './rolls.js';
 import { broadcast, gameCharacters, loadGame, saveGame, saveGameCharacter, type GameRow } from './store.js';
 import { clip, sameName } from './text.js';
 import { actionsText, addTurnHooks, dm, orderedActions, playersOf, resolveLater, setPhase, type StateJson } from './turn.js';
@@ -21,7 +21,7 @@ export function autoResolve(g: GameRow, chars: GameCharacter[]): boolean {
   for (let pass = 0; pass < 40; pass++) {
     const r = g.state.rolls.find((x) => ready(x, g.state.rolls) && (x.auto || chars.find((c) => c.id === x.characterId)?.absent));
     if (!r) break;
-    resolveRoll(r, g.state.rolls, undefined, { hideTargets: g.settings.hideTargets });
+    resolveRoll(r, g.state.rolls);
     logRoll(g, r);
     moved = true;
   }
@@ -47,7 +47,7 @@ export function rollOverdue(now = Date.now()) {
     const late = g.state.rolls.filter((r) => r.deadline && Date.parse(r.deadline) <= now && ready(r, g.state.rolls));
     if (!late.length) continue;
     for (const r of late) {
-      resolveRoll(r, g.state.rolls, undefined, { timedOut: true, hideTargets: g.settings.hideTargets });
+      resolveRoll(r, g.state.rolls, undefined, { timedOut: true });
       logRoll(g, r);
     }
     autoResolve(g, gameCharacters(g.id));
@@ -74,7 +74,18 @@ export function logRoll(g: GameRow, r: PendingRoll) {
     c.conditions = c.conditions.filter((x) => !used!.includes(x.name));
     saveGameCharacter(g.id, c);
   }
-  addLog(g.id, g.state.turn, 'roll', r.result!.text, r.actor, { rollId: r.id, kind: r.kind, adv: r.adv, dice: r.result!.dice, faces: r.result!.faces, total: r.result!.total, manual: r.result!.manual, success: r.result!.success, crit: r.result!.crit, fumble: r.result!.fumble });
+  const result = r.result!;
+  const d20 = !result.skipped && !['damage', 'heal', 'hitdie', 'initiative'].includes(r.kind);
+  const data: RollLogData = {
+    rollId: r.id, kind: r.kind, adv: r.adv, dice: result.dice, faces: result.faces,
+    total: result.total, manual: result.manual, success: result.success, crit: result.crit, fumble: result.fumble,
+    ...(d20 ? {
+      natural: result.natural, bonus: r.bonus, parts: r.parts, bonusRolls: result.bonusRolls, advFrom: r.advFrom,
+      dc: r.dc, targetAc: r.targetAc, margin: result.margin, dcReason: r.dcReason,
+    } : {}),
+    ...(!result.skipped ? { timedOut: result.timedOut } : {}),
+  };
+  addLog(g.id, g.state.turn, 'roll', result.text, r.actor, Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined)));
 }
 
 export const pendingRolls = (g: GameRow) => g.state.rolls.filter((r) => !r.result);
@@ -83,7 +94,7 @@ export const pendingRolls = (g: GameRow) => g.state.rolls.filter((r) => !r.resul
 function deathRolls(chars: GameCharacter[], start: number): PendingRoll[] {
   return chars
     .filter((c) => c.seated && c.hp <= 0 && !c.conditions.some((x) => x.name === 'dead' || x.name === 'stable'))
-    .map((c, i) => ({ id: `d${start + i}`, actor: c.name, characterId: c.id, kind: 'death' as const, label: `${c.name} death saving throw`, dice: '1d20', adv: 'none' as const, bonus: 0, dc: 10 }));
+    .map((c, i) => ({ id: `d${start + i}`, actor: c.name, characterId: c.id, kind: 'death' as const, label: `${c.name} death saving throw`, dice: '1d20', adv: 'none' as const, bonus: 0, parts: [], dc: 10 }));
 }
 
 /** M6 step 2-3: adjudicate, check and spend resources, set up the rolls. False = the turn waits (refusal or rolls). */
@@ -228,16 +239,15 @@ export function playerRoll(g: GameRow, rollId: string, userId: string, isHost: b
   const chars = gameCharacters(g.id);
   const c = chars.find((x) => x.id === r.characterId);
   if (!c || (c.userId !== userId && !isHost)) return { error: "That's not your roll" };
-  const opts = { hideTargets: g.settings.hideTargets };
   try {
-    resolveRoll(r, g.state.rolls, manual, opts);
+    resolveRoll(r, g.state.rolls, manual);
   } catch (err) {
     return { error: (err as Error).message };
   }
   logRoll(g, r);
   if (withDamage && r.kind === 'attack')
     for (const d of g.state.rolls.filter((x) => x.onHit === r.id && x.characterId === r.characterId && ready(x, g.state.rolls))) {
-      resolveRoll(d, g.state.rolls, undefined, opts);
+      resolveRoll(d, g.state.rolls);
       logRoll(g, d);
     }
   autoResolve(g, chars);
@@ -271,6 +281,7 @@ export function freeRoll(g: GameRow, user: { id: string; username: string }, bod
     if (!c) return { error: 'Only players with a character at the table can ask for a check' };
     const d = derive(rules(g.ruleset), c);
     const exh2024 = g.ruleset === 'srd52' ? 2 * c.exhaustion : 0;
+    const advFrom = conditionAdvSources(c, 'check', ability, g.ruleset);
     const r: PendingRoll = {
       id: 'asked',
       actor: c.name,
@@ -280,6 +291,8 @@ export function freeRoll(g: GameRow, user: { id: string; username: string }, bod
       dice: '1d20',
       adv: conditionAdv(c, 'check', ability, g.ruleset),
       bonus: skill ? d.skillBonus[skill] : d.mods[ability] - exh2024,
+      parts: skill ? d.skillParts[skill] : abilityParts(ability, d.mods[ability], exh2024),
+      ...(advFrom.length ? { advFrom } : {}),
       ...(c.species === 'halfling' ? { luck: true } : {}),
     };
     resolveRoll(r, [r]);

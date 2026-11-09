@@ -171,7 +171,68 @@ export interface PendingRoll {
   luck?: boolean;
   /** A critical hit on this natural roll or higher (Improved Critical: 19). */
   critOn?: number;
+  /**
+   * d20 tests: `bonus` split into named pieces, in sheet order (ability, proficiency, exhaustion).
+   * The values always add up to `bonus`. Missing on damage rolls and on rolls saved before it existed.
+   */
+  parts?: RollPart[];
+  /** d20 tests: every source of advantage and disadvantage, also the ones that cancelled out. */
+  advFrom?: AdvSource[];
+  /** One short line on why the DC or AC is what it is ("Slick, crumbling wall", "Galamoth's spell save DC"). Hidden with the DC. */
+  dcReason?: string;
   result?: RollOutcome;
+}
+
+/** One named piece of a roll's flat bonus. */
+export interface RollPart {
+  /** "DEX", "Proficiency", "Exhaustion", "Spellcasting (WIS)", "Stat block" */
+  label: string;
+  /** Signed: exhaustion is negative. */
+  value: number;
+}
+
+/** Where advantage or disadvantage came from. */
+export interface AdvSource {
+  adv: 'adv' | 'dis';
+  /** Who said so, for the player: "The DM", "Poisoned", "Target is prone", "Reckless Attack". */
+  from: string;
+}
+
+/** A bonus die (Bless, Guidance…) as it was rolled. */
+export interface BonusRoll {
+  from: string;
+  dice: string;
+  total: number;
+}
+
+/**
+ * The `data` of a 'roll' log entry: enough to draw the roll card from the log alone.
+ * Everything after `fumble` is new with the roll card; old entries lack it and keep the one-line view.
+ * With the host's "Hide DC/AC" on, `dc`, `targetAc`, `margin` and `dcReason` are left out (the log goes to everyone).
+ */
+export interface RollLogData {
+  rollId: string;
+  kind: PendingRoll['kind'];
+  adv?: PendingRoll['adv'];
+  dice: number[];
+  faces?: DieFace[];
+  total: number;
+  manual: boolean;
+  success?: boolean;
+  crit?: boolean;
+  fumble?: boolean;
+  natural?: number;
+  bonus?: number;
+  parts?: RollPart[];
+  bonusRolls?: BonusRoll[];
+  advFrom?: AdvSource[];
+  dc?: number;
+  targetAc?: number;
+  margin?: number;
+  dcReason?: string;
+  /** The DC/AC was hidden from the players when this was logged. */
+  hidden?: boolean;
+  timedOut?: boolean;
 }
 
 /** One die as it landed: its size, its face and whether it was dropped (advantage, 4d6kh3). */
@@ -207,6 +268,10 @@ export interface RollOutcome {
   success?: boolean;
   crit?: boolean;
   fumble?: boolean;
+  /** d20 tests with a DC or AC: total minus it (negative: failed by that much). */
+  margin?: number;
+  /** The bonus dice this roll threw (Bless 1d4 → 3), each on its own. */
+  bonusRolls?: BonusRoll[];
   skipped?: boolean;
   text: string;
 }

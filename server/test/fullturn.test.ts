@@ -228,3 +228,26 @@ describe('the full turn loop', () => {
     expect(e.counters.find((k: any) => k.name === 'Channel Divinity')).toBeUndefined(); // level 1 cleric: none yet
   });
 });
+
+
+it('engine-generated death saves carry an empty parts list', async () => {
+  const table = await setupGame(app);
+  const { loadGame, saveGame, gameCharacters, saveGameCharacter } = await import('../src/game/store.js');
+  const g = loadGame(table.id)!;
+  g.status = 'playing';
+  g.state.phase = 'collect';
+  g.state.turn = 1;
+  const downed = gameCharacters(g.id).find((c) => c.id === table.plChar)!;
+  downed.hp = 0;
+  downed.conditions = [{ name: 'unconscious' }];
+  saveGameCharacter(g.id, downed);
+  saveGame(g);
+  const res = await table.as(table.host, 'POST', `/api/games/${g.id}/actions`, { characterId: table.hostChar, text: 'I defend Esva' });
+  expect(res.statusCode).toBe(200);
+  await turn.settled(g.id);
+  const state = loadGame(g.id)!.state;
+  expect(state.phase).toBe('rolling');
+  expect(state.rolls).toHaveLength(1);
+  expect(state.rolls[0]).toMatchObject({ kind: 'death', characterId: downed.id, dice: '1d20', bonus: 0, parts: [], dc: 10 });
+  expect(state.rolls[0].parts!.reduce((sum, p) => sum + p.value, 0)).toBe(state.rolls[0].bonus);
+});

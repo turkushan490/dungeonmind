@@ -1,3 +1,4 @@
+import type { RollPart } from './game';
 import type { Abilities, Ability, Ruleset } from './rules';
 
 export type Recharge = 'short' | 'long' | 'dawn' | 'turn' | 'none';
@@ -131,6 +132,9 @@ export interface Derived {
   passivePerception: number;
   saveBonus: Abilities;
   skillBonus: Record<string, number>;
+  /** How each save and skill bonus is built ("WIS +3", "Proficiency +2", "Exhaustion -4"); the values add up to saveBonus / skillBonus. */
+  saveParts: Record<Ability, RollPart[]>;
+  skillParts: Record<string, RollPart[]>;
   spellAbility?: Ability;
   spellDc?: number;
   spellAttack?: number;

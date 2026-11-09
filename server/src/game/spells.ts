@@ -1,4 +1,4 @@
-import type { GameCharacter, RulesData, RulesSpell, SpellEffect } from '@dungeonmind/shared';
+import type { Ability, GameCharacter, RulesData, RulesSpell, SpellEffect } from '@dungeonmind/shared';
 import { findIn, slug } from '../rules/index.js';
 import { derive } from './character.js';
 import { classesOf } from './classes.js';
@@ -22,6 +22,14 @@ export function spellMod(rules: RulesData, c: GameCharacter, spell?: RulesSpell)
   const own = spell ? classesOf(rules, c).flatMap((e) => (e.cls.spellAbility && spell.classes.includes(e.cls.id) ? [d.mods[e.cls.spellAbility]] : [])) : [];
   if (own.length) return Math.max(...own);
   return d.spellAbility ? d.mods[d.spellAbility] : Math.max(d.mods.int, d.mods.wis, d.mods.cha);
+}
+
+/** The ability that supplies spellMod, including multiclass and racial spell fallbacks. */
+export function spellAbility(rules: RulesData, c: GameCharacter, spell?: RulesSpell): Ability {
+  const d = derive(rules, c);
+  const own = spell ? classesOf(rules, c).flatMap((e) => (e.cls.spellAbility && spell.classes.includes(e.cls.id) ? [e.cls.spellAbility] : [])) : [];
+  const candidates: Ability[] = own.length ? own : d.spellAbility ? [d.spellAbility] : ['int', 'wis', 'cha'];
+  return candidates.reduce((best, a) => d.mods[a] > d.mods[best] ? a : best);
 }
 
 /** The spell save DC for a spell; undefined for a caster without any spellcasting class (the AI's number stands). */

@@ -1,11 +1,11 @@
-import { SKILLS, type Ability, type BonusDie, type GameCharacter, type Npc, type PendingRoll, type RollOutcome, type RulesData, type RulesSpell } from '@dungeonmind/shared';
+import { SKILLS, type Ability, type AdvSource, type BonusDie, type GameCharacter, type Npc, type PendingRoll, type RollOutcome, type RollPart, type RulesData, type RulesSpell } from '@dungeonmind/shared';
 import { findIn } from '../rules/index.js';
 import { checkManual, combineAdv, DiceError, diceNeeded, parseDice, roll, rollD20, type Adv } from './dice.js';
 import { derive, itemByName } from './character.js';
 import { normalizeCounterName } from './bookkeeper.js';
 import { actionNamed, monsterAttack, monsterCheck, monsterOf, monsterSave, type MonsterAction } from './monsters.js';
-import { critOn, damageRiders, featureAdv, featureHeal } from './features.js';
-import { cantripTier, knownSpell, spellCount, spellDice, spellMod, spellSaveDc } from './spells.js';
+import { critOn, damageRiders, featureAdvSources, featureHeal, isRanged } from './features.js';
+import { cantripTier, knownSpell, spellAbility, spellCount, spellDice, spellMod, spellSaveDc } from './spells.js';
 import { clip, sameName } from './text.js';
 
 /** What dnd-adjudicate returns. */
@@ -51,24 +51,42 @@ const skillOf = (s: string | undefined) => {
 
 /** Conditions that change the actor's own d20 rolls. */
 export function conditionAdv(c: GameCharacter | undefined, kind: string, ability?: Ability, ruleset = 'srd51'): Adv {
-  if (!c) return 'none';
+  return combineAdv(...conditionAdvSources(c, kind, ability, ruleset).map((s) => s.adv));
+}
+
+export function conditionAdvSources(c: GameCharacter | undefined, kind: string, ability?: Ability, ruleset = 'srd51'): AdvSource[] {
+  if (!c) return [];
   const on = (n: string) => c.conditions.some((x) => x.name === n);
-  const src: Adv[] = [];
+  const src: AdvSource[] = [];
+  const conditions = (names: string[], adv: AdvSource['adv']) => {
+    for (const name of names.filter(on)) src.push({ adv, from: name[0].toUpperCase() + name.slice(1) });
+  };
+  const exhaustion = (level: number) => {
+    if (ruleset === 'srd51' && c.exhaustion >= level) src.push({ adv: 'dis', from: 'Exhaustion' });
+  };
   if (kind === 'attack') {
-    if (['blinded', 'frightened', 'poisoned', 'prone', 'restrained'].some(on)) src.push('dis');
-    if (on('invisible') || on('hidden')) src.push('adv');
-    if (ruleset === 'srd51' && c.exhaustion >= 3) src.push('dis');
+    conditions(['blinded', 'frightened', 'poisoned', 'prone', 'restrained'], 'dis');
+    conditions(['invisible', 'hidden'], 'adv');
+    exhaustion(3);
   }
   if (kind === 'check') {
-    if (on('poisoned') || on('frightened')) src.push('dis');
-    if (ruleset === 'srd51' && c.exhaustion >= 1) src.push('dis');
+    conditions(['poisoned', 'frightened'], 'dis');
+    exhaustion(1);
   }
   if (kind === 'save') {
-    if (on('restrained') && ability === 'dex') src.push('dis');
-    if (ruleset === 'srd51' && c.exhaustion >= 3) src.push('dis');
-    if (on('dodging') && ability === 'dex') src.push('adv');
+    if (ability === 'dex') conditions(['restrained'], 'dis');
+    exhaustion(3);
+    if (ability === 'dex') conditions(['dodging'], 'adv');
   }
-  return combineAdv(...src);
+  return src;
+}
+
+/** A plain ability check has no proficiency bonus. */
+export function abilityParts(ability: Ability, value: number, exhaustionPenalty = 0): RollPart[] {
+  return [
+    { label: ability.toUpperCase(), value },
+    ...(exhaustionPenalty ? [{ label: 'Exhaustion', value: -exhaustionPenalty }] : []),
+  ];
 }
 
 /**
@@ -92,7 +110,9 @@ export function bonusDiceFor(c: GameCharacter, kind: PendingRoll['kind'], used: 
 }
 
 /** Attacks against a target with these conditions have advantage. */
-const targetGivesAdv = (c: GameCharacter | undefined) => !!c && c.conditions.some((x) => ['blinded', 'paralyzed', 'restrained', 'stunned', 'unconscious', 'petrified'].includes(x.name));
+const targetAdvSources = (c: GameCharacter | undefined): AdvSource[] =>
+  (c?.conditions ?? []).filter((x) => ['blinded', 'paralyzed', 'restrained', 'stunned', 'unconscious', 'petrified'].includes(x.name))
+    .map((x) => ({ adv: 'adv', from: `Target is ${x.name}` }));
 
 function safeDice(expr: string | undefined, fallback: string): string {
   try {
@@ -224,24 +244,48 @@ export function buildRolls(rules: RulesData, chars: GameCharacter[], npcs: Npc[]
       auto: !pc,
     };
     const aiAdv = (['adv', 'dis'].includes(String(r.adv)) ? r.adv : 'none') as Adv;
+    const setAdv = (kind: string, ab?: Ability) => {
+      const conditions = conditionAdvSources(pc, kind, ab, rules.ruleset);
+      const target = kind === 'attack' ? targetAdvSources(targetPc) : [];
+      const features = featureAdvSources(rules, pc, kind, ab, kind === 'attack' && !!r.spell);
+      const sources: AdvSource[] = [...(aiAdv === 'none' ? [] : [{ adv: aiAdv, from: 'The DM' }]), ...conditions, ...target, ...features];
+      base.adv = combineAdv(...sources.map((s) => s.adv));
+      if (sources.length) base.advFrom = sources;
+    };
     if (kind === 'attack') {
       let bonus = Number(r.bonus) || 0;
+      let parts: RollPart[] = [{ label: 'Bonus', value: bonus }];
       let what = r.weapon || r.spell || 'attack';
       if (pc && d) {
-        if (r.spell) bonus = d.profBonus + spellMod(rules, pc, findIn(rules.spells, r.spell));
-        else {
+        if (r.spell) {
+          const spell = findIn(rules.spells, r.spell);
+          const mod = spellMod(rules, pc, spell);
+          bonus = d.profBonus + mod - exh2024;
+          parts = [
+            { label: `Spellcasting (${spellAbility(rules, pc, spell).toUpperCase()})`, value: mod },
+            { label: 'Proficiency', value: d.profBonus },
+            ...(exh2024 ? [{ label: 'Exhaustion', value: -exh2024 }] : []),
+          ];
+        } else {
           const item = (r.weapon && pc.inventory.find((it) => sameName(it.name, r.weapon))) || pc.inventory.find((it) => it.equipped && itemByName(rules, it.name)?.damage);
           const w = item ? itemByName(rules, item.name) : undefined;
           const finesse = w?.properties?.some((p) => /finesse/i.test(p));
-          const ranged = /ranged/i.test(w?.category ?? '');
+          const ranged = isRanged(rules, w);
           const m = finesse ? Math.max(d.mods.str, d.mods.dex) : ranged ? d.mods.dex : d.mods.str;
           bonus = m + d.profBonus - exh2024;
+          const ab = finesse ? d.mods.dex > d.mods.str ? 'dex' : 'str' : ranged ? 'dex' : 'str';
+          parts = [
+            { label: ab.toUpperCase(), value: m },
+            { label: 'Proficiency', value: d.profBonus },
+            ...(exh2024 ? [{ label: 'Exhaustion', value: -exh2024 }] : []),
+          ];
           what = item?.name ?? 'unarmed strike';
         }
       } else if (mon) {
         const a = monsterAttack(mon, r.weapon || r.spell);
         if (a) {
           bonus = a.attack!;
+          parts = [{ label: 'Stat block', value: bonus }];
           what = a.name.replace(/^Legendary: /, '');
           attackOf.set(base.id, a);
         }
@@ -250,9 +294,10 @@ export function buildRolls(rules: RulesData, chars: GameCharacter[], npcs: Npc[]
       Object.assign(base, {
         label: `${base.actor} attacks${base.target ? ` ${base.target}` : ''} (${what})`,
         bonus,
+        parts,
         targetAc: ac,
-        adv: combineAdv(aiAdv, conditionAdv(pc, 'attack', undefined, rules.ruleset), targetGivesAdv(targetPc) ? 'adv' : 'none', featureAdv(rules, pc, 'attack', undefined, !!r.spell) ? 'adv' : 'none'),
       });
+      setAdv('attack');
       // Improved Critical: weapon attacks only.
       const crit = pc && !r.spell ? critOn(rules, pc) : 20;
       if (crit < 20) base.critOn = crit;
@@ -267,16 +312,18 @@ export function buildRolls(rules: RulesData, chars: GameCharacter[], npcs: Npc[]
         label: `${base.actor} ${ab.toUpperCase()} save`,
         bonus: pc && d ? d.saveBonus[ab] : mon ? monsterSave(mon, ab) : Number(r.bonus) || 0,
         dc,
-        adv: combineAdv(aiAdv, conditionAdv(pc, 'save', ab, rules.ruleset), featureAdv(rules, pc, 'save', ab) ? 'adv' : 'none'),
       });
+      base.parts = pc && d ? d.saveParts[ab] : [{ label: mon ? 'Stat block' : 'Bonus', value: base.bonus }];
+      setAdv('save', ab);
     } else if (kind === 'check') {
       const ab = ability ?? (skill ? SKILLS[skill] : 'wis');
       Object.assign(base, {
         label: `${base.actor} ${skill ? skill.replace(/-/g, ' ') : ab.toUpperCase()} check`,
         bonus: pc && d ? (skill ? d.skillBonus[skill] : d.mods[ab] - exh2024) : mon ? monsterCheck(mon, ab, skill) : Number(r.bonus) || 0,
         dc: Number(r.dc) || undefined,
-        adv: combineAdv(aiAdv, conditionAdv(pc, 'check', ab, rules.ruleset), featureAdv(rules, pc, 'check', ab) ? 'adv' : 'none'),
       });
+      base.parts = pc && d ? skill ? d.skillParts[skill] : abilityParts(ab, d.mods[ab], exh2024) : [{ label: mon ? 'Stat block' : 'Bonus', value: base.bonus }];
+      setAdv('check', ab);
     } else {
       // damage / heal
       let dice = safeDice(r.dice, kind === 'heal' ? '1d4' : '1d6');
@@ -286,7 +333,7 @@ export function buildRolls(rules: RulesData, chars: GameCharacter[], npcs: Npc[]
         const item = (r.weapon && pc.inventory.find((it) => sameName(it.name, r.weapon))) || pc.inventory.find((it) => it.equipped && itemByName(rules, it.name)?.damage);
         const w = item ? itemByName(rules, item.name) : undefined;
         const finesse = !!w?.properties?.some((p) => /finesse/i.test(p));
-        const ranged = /ranged/i.test(w?.category ?? '');
+        const ranged = isRanged(rules, w);
         const m = !w ? d.mods.str : finesse ? Math.max(d.mods.str, d.mods.dex) : ranged ? d.mods.dex : d.mods.str;
         if (w?.damage) {
           dice = `${w.damage}${m >= 0 ? '+' : ''}${m}`;
@@ -446,6 +493,8 @@ export function resolveRoll(r: PendingRoll, all: PendingRoll[], manual?: number[
     success,
     crit: d.crit,
     fumble: d.fumble,
+    ...(r.kind === 'attack' ? { margin: total - (r.targetAc ?? 10) } : r.kind !== 'death' && r.dc !== undefined ? { margin: total - r.dc } : {}),
+    ...(bonusRolls.length ? { bonusRolls: bonusRolls.map(({ e, out }) => ({ from: e.from, dice: e.dice, total: out.total })) } : {}),
     text: `${r.label}: d20 ${d.natural}${advText}${luckText}${bonusText} ${r.bonus >= 0 ? '+' : '−'} ${Math.abs(r.bonus)} = ${total}${vs}${who}`,
   };
   r.result = res;

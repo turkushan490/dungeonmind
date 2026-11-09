@@ -12,6 +12,7 @@ import {
   type Derived,
   type InventoryItem,
   type Recharge,
+  type RollPart,
   type RulesClass,
   type RulesData,
   type RulesItem,
@@ -230,8 +231,17 @@ export function derive(rules: RulesData, c: Character): Derived {
   else ac = 10 + mods.dex;
   if (shield) ac += 2;
 
-  const saveBonus = Object.fromEntries(ABILITIES.map((a) => [a, mods[a] + (c.saves.includes(a) ? pb : 0) - exhaustionPenalty])) as Abilities;
-  const skillBonus = Object.fromEntries(Object.entries(SKILLS).map(([s, a]) => [s, mods[a] + (c.skills.includes(s) ? pb : 0) - exhaustionPenalty]));
+  // Each save and skill bonus as named parts; the totals are their sums.
+  const partsFor = (a: Ability, proficient: boolean): RollPart[] => [
+    { label: a.toUpperCase(), value: mods[a] },
+    ...(proficient ? [{ label: 'Proficiency', value: pb }] : []),
+    ...(exhaustionPenalty ? [{ label: 'Exhaustion', value: -exhaustionPenalty }] : []),
+  ];
+  const sum = (p: RollPart[]) => p.reduce((t, x) => t + x.value, 0);
+  const saveParts = Object.fromEntries(ABILITIES.map((a) => [a, partsFor(a, c.saves.includes(a))])) as Record<Ability, RollPart[]>;
+  const skillParts = Object.fromEntries(Object.entries(SKILLS).map(([s, a]) => [s, partsFor(a, c.skills.includes(s))]));
+  const saveBonus = Object.fromEntries(ABILITIES.map((a) => [a, sum(saveParts[a])])) as Abilities;
+  const skillBonus = Object.fromEntries(Object.entries(skillParts).map(([s, p]) => [s, sum(p)]));
   // The first class that casts at its level gives the save DC and attack (spells.ts picks per spell).
   const spellAbility = classes.find((e) => e.cls.spellAbility && e.cls.levels.find((l) => l.level === e.level)?.spellcasting)?.cls.spellAbility;
   const sp = findIn(rules.species, c.species);
@@ -245,6 +255,8 @@ export function derive(rules: RulesData, c: Character): Derived {
     passivePerception: 10 + skillBonus.perception,
     saveBonus,
     skillBonus,
+    saveParts,
+    skillParts,
     spellAbility,
     spellDc: spellAbility ? 8 + pb + mods[spellAbility] : undefined,
     spellAttack: spellAbility ? pb + mods[spellAbility] : undefined,

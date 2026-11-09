@@ -5,6 +5,7 @@ import { prefsOf, requireAdmin, requireUser } from '../auth/index.js';
 import { db, setSetting } from '../db.js';
 import { addTurnHooks } from '../game/turn.js';
 import { loadGame, saveGame } from '../game/store.js';
+import { textFor } from '../game/hidden.js';
 import { isOnline } from '../realtime.js';
 import { logProblem } from '../problems.js';
 import { simContext } from '../trainer/context.js';
@@ -129,7 +130,7 @@ export function ttsRoutes(app: FastifyInstance) {
     if (!row) return reply.code(404).send({ error: 'No such narration' });
     if (ttsSettings().engine === 'off') return reply.code(409).send({ error: 'The narrator voice is turned off' });
     const narrator = voiceById(q.voice) ? q.voice! : ttsSettings().narrator;
-    const parts = partsFor(r.g.id, row.text, speakersOf(row.data ? JSON.parse(row.data) : {}), narrator);
+    const parts = partsFor(r.g.id, textFor(r.g, r.role, row.text), speakersOf(row.data ? JSON.parse(row.data) : {}), narrator);
     return render(parts, Number(q.speed) || 1);
   });
 
