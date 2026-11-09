@@ -93,7 +93,6 @@ export function validateBuild(rules: RulesData, b: CharacterBuild, opts: { minLe
   if (!cls) errors.push(b.class ? `Unknown class "${b.class}".` : 'Pick a class.');
   if (!sp) errors.push(b.species ? `Unknown species "${b.species}".` : 'Pick a species.');
   if (!bg) errors.push(b.background ? `Unknown background "${b.background}".` : 'Pick a background.');
-  if (sp && sp.subspecies.length && rules.ruleset === 'srd51' && !b.subspecies) errors.push(`Pick a subrace for ${sp.name}.`);
   if (sp && b.subspecies && !findSub(sp.subspecies, b.subspecies)) errors.push(`${b.subspecies} is not a ${sp.name} option.`);
   if (cls && b.subclass && !findSub(cls.subclasses, b.subclass)) errors.push(`${b.subclass} is not a ${cls.name} subclass in this ruleset.`);
   const classes = cls ? classesOf(rules, b) : [];
@@ -241,7 +240,7 @@ export function derive(rules: RulesData, c: Character): Derived {
     mods,
     ac,
     initiative: mods.dex - exhaustionPenalty,
-    speed: Math.max(0, (sp?.speed ?? 30) - (rules.ruleset === 'srd52' ? 5 * c.exhaustion : 0)),
+    speed: Math.max(0, (findSub(sp?.subspecies ?? [], c.subspecies)?.speed ?? sp?.speed ?? 30) - (rules.ruleset === 'srd52' ? 5 * c.exhaustion : 0)),
     passivePerception: 10 + skillBonus.perception,
     saveBonus,
     skillBonus,

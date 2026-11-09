@@ -62,3 +62,5 @@ docs/             HIVEMIND_CHANGES.md · GUIDE.md · TURKUSHAN_AUTH_HEADERS.md
 DungeonMind is free software under the **AGPL-3.0**.
 
 This work includes material from the **System Reference Document 5.1** and **System Reference Document 5.2** by Wizards of the Coast LLC, available at <https://www.dndbeyond.com/srd>, licensed under the [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/legalcode). The rules data was imported from the [5e-bits 5e-database](https://github.com/5e-bits/5e-database) (MIT). DungeonMind is not affiliated with or endorsed by Wizards of the Coast.
+
+Standard D&D options that aren't in the SRD (backgrounds, subraces and origin feats) are in `server/data/<ruleset>/origins.json`: their names and mechanics only, described in our own words. No text, flavour or tables are copied from the books.

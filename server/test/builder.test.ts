@@ -92,8 +92,13 @@ describe('builder legality, SRD 5.1', () => {
     expect(lib.validateBuild(rules('srd51'), fighter51({ skills: ['athletics'] })).join()).toMatch(/1 more skill/);
   });
 
-  it('requires a subrace and a subclass at the right level', () => {
-    expect(lib.validateBuild(rules('srd51'), fighter51({ subspecies: undefined })).join()).toMatch(/subrace/);
+  it('accepts a dwarf without a subrace and applies only base bonuses', () => {
+    const b = fighter51({ subspecies: undefined });
+    expect(lib.validateBuild(rules('srd51'), b)).toEqual([]);
+    expect(lib.buildCharacter(rules('srd51'), b, { id: 'x', ownerId: 'u' }).abilities).toEqual({ ...b.baseAbilities, con: 16 });
+  });
+
+  it('requires a subclass at the right level', () => {
     expect(lib.validateBuild(rules('srd51'), fighter51({ level: 3 })).join()).toMatch(/needs a subclass/);
     expect(lib.validateBuild(rules('srd51'), fighter51({ level: 3, subclass: 'champion' }))).toEqual([]);
   });

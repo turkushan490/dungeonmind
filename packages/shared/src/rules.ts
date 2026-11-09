@@ -42,7 +42,7 @@ export interface RulesSpecies {
   /** 2014: fixed racial bonuses. 2024: empty (the background gives the bonuses). */
   abilityBonuses: Partial<Abilities>;
   traits: string[];
-  subspecies: { id: string; name: string; abilityBonuses: Partial<Abilities>; traits: string[] }[];
+  subspecies: { id: string; name: string; abilityBonuses: Partial<Abilities>; traits: string[]; speed?: number; source?: string }[];
   languages?: string[];
 }
 
@@ -50,6 +50,9 @@ export interface RulesBackground {
   id: string;
   name: string;
   skills: string[];
+  tools?: string[];
+  languages?: number;
+  source?: string;
   /** 2024: the three abilities the +2/+1 (or +1/+1/+1) go to. */
   abilityOptions?: Ability[];
   feat?: string;
@@ -156,6 +159,7 @@ export interface RulesMonster {
 }
 
 export interface RulesEntry {
+  source?: string;
   id: string;
   name: string;
   desc: string;

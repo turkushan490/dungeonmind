@@ -1,0 +1,164 @@
+{
+  "backgrounds": [
+    {
+      "id": "artisan",
+      "name": "Artisan",
+      "skills": ["investigation", "persuasion"],
+      "abilityOptions": ["str", "dex", "int"],
+      "feat": "Crafter",
+      "tools": ["One kind of artisan's tools"],
+      "equipment": ["Either take 50 GP, or start with 32 GP plus Traveler's Clothes, 2 Pouches and Artisan's Tools of a kind you are proficient with."],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "charlatan",
+      "name": "Charlatan",
+      "skills": ["deception", "sleight-of-hand"],
+      "abilityOptions": ["dex", "con", "cha"],
+      "feat": "Skilled",
+      "tools": ["Forgery kit"],
+      "equipment": ["Either take 50 GP, or start with 15 GP plus Fine Clothes, a Costume and a Forgery Kit."],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "entertainer",
+      "name": "Entertainer",
+      "skills": ["acrobatics", "performance"],
+      "abilityOptions": ["str", "dex", "cha"],
+      "feat": "Musician",
+      "tools": ["One kind of musical instrument"],
+      "equipment": ["Either take 50 GP, or start with 11 GP plus Traveler's Clothes, Perfume, a Mirror, 2 Costumes and a Musical Instrument of a kind you are proficient with."],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "farmer",
+      "name": "Farmer",
+      "skills": ["animal-handling", "nature"],
+      "abilityOptions": ["str", "con", "wis"],
+      "feat": "Tough",
+      "tools": ["Carpenter's tools"],
+      "equipment": ["Either take 50 GP, or start with 30 GP plus Traveler's Clothes, a Shovel, an Iron Pot, a Healer's Kit, Carpenter's Tools and a Sickle."],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "guard",
+      "name": "Guard",
+      "skills": ["athletics", "perception"],
+      "abilityOptions": ["str", "int", "wis"],
+      "feat": "Alert",
+      "tools": ["One kind of gaming set"],
+      "equipment": ["Either take 50 GP, or start with 12 GP plus Traveler's Clothes, a Quiver, Manacles, a Hooded Lantern, a Gaming Set of a kind you are proficient with, 20 Bolts, a Light Crossbow and a Spear."],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "guide",
+      "name": "Guide",
+      "skills": ["stealth", "survival"],
+      "abilityOptions": ["dex", "con", "wis"],
+      "feat": "Magic Initiate (Druid)",
+      "tools": ["Cartographer's tools"],
+      "equipment": ["Either take 50 GP, or start with 3 GP plus Traveler's Clothes, a Tent, a Quiver, a Bedroll, Cartographer's Tools, 20 Arrows and a Shortbow."],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "hermit",
+      "name": "Hermit",
+      "skills": ["medicine", "religion"],
+      "abilityOptions": ["con", "wis", "cha"],
+      "feat": "Healer",
+      "tools": ["Herbalism kit"],
+      "equipment": ["Either take 50 GP, or start with 16 GP plus Traveler's Clothes, 3 flasks of Oil, a Lamp, a Book on philosophy, a Bedroll, an Herbalism Kit and a Quarterstaff."],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "merchant",
+      "name": "Merchant",
+      "skills": ["animal-handling", "persuasion"],
+      "abilityOptions": ["con", "int", "cha"],
+      "feat": "Lucky",
+      "tools": ["Navigator's tools"],
+      "equipment": ["Either take 50 GP, or start with 22 GP plus Traveler's Clothes, 2 Pouches and Navigator's Tools."],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "noble",
+      "name": "Noble",
+      "skills": ["history", "persuasion"],
+      "abilityOptions": ["str", "int", "cha"],
+      "feat": "Skilled",
+      "tools": ["One kind of gaming set"],
+      "equipment": ["Either take 50 GP, or start with 29 GP plus Perfume, Fine Clothes and a Gaming Set of a kind you are proficient with."],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "sailor",
+      "name": "Sailor",
+      "skills": ["acrobatics", "perception"],
+      "abilityOptions": ["str", "dex", "wis"],
+      "feat": "Tavern Brawler",
+      "tools": ["Navigator's tools"],
+      "equipment": ["Either take 50 GP, or start with 20 GP plus Traveler's Clothes, Rope, Navigator's Tools and a Dagger."],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "scribe",
+      "name": "Scribe",
+      "skills": ["investigation", "perception"],
+      "abilityOptions": ["dex", "int", "wis"],
+      "feat": "Skilled",
+      "tools": ["Calligrapher's supplies"],
+      "equipment": ["Either take 50 GP, or start with 23 GP plus 12 sheets of Parchment, 3 flasks of Oil, a Lamp, Fine Clothes and Calligrapher's Supplies."],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "wayfarer",
+      "name": "Wayfarer",
+      "skills": ["insight", "stealth"],
+      "abilityOptions": ["dex", "wis", "cha"],
+      "feat": "Lucky",
+      "tools": ["Thieves' tools"],
+      "equipment": ["Either take 50 GP, or start with 16 GP plus Traveler's Clothes, 2 Pouches, a Bedroll, a Gaming Set of any kind, Thieves' Tools and 2 Daggers."],
+      "source": "standard option, own words"
+    }
+  ],
+  "subspecies": {},
+  "feats": [
+    {
+      "id": "crafter",
+      "name": "Crafter",
+      "desc": "Gain proficiency with three of the eight tool kinds below; nonmagical purchases cost you 20 percent less. On completing a long rest, you may make one listed item with tools you possess and are proficient with; it falls apart when your next long rest ends. Carpenter's tools can make a torch or ladder; leatherworker's tools a pouch, map or scroll case, or crossbow bolt case; mason's tools a block and tackle; potter's tools a lamp or jug; smith's tools an iron pot, grappling hook, caltrops, bucket or ball bearings; tinker's tools a tinderbox, shovel or bell; weaver's tools a tent, net, rope or basket; woodcarver's tools a quarterstaff, greatclub or club.",
+      "source": "standard option, own words"
+    },
+    {
+      "id": "healer",
+      "name": "Healer",
+      "desc": "Take the Utilize action and spend one use of a healer's kit to treat a creature within 5 feet. If it spends one Hit Point Die, roll that die and add your proficiency bonus to find how many hit points it recovers. When your healing spell or this treatment rolls a 1 on a healing die, you may reroll that die once and keep the replacement result.",
+      "source": "standard option, own words"
+    },
+    {
+      "id": "lucky",
+      "name": "Lucky",
+      "desc": "Your pool of Luck Points holds as many points as your proficiency bonus, and a long rest refills it. Spend 1 point when rolling a D20 Test to roll with advantage. Alternatively, spend 1 point when a creature rolls an attack against you to give that roll disadvantage.",
+      "source": "standard option, own words"
+    },
+    {
+      "id": "musician",
+      "name": "Musician",
+      "desc": "Choose three musical instruments to gain proficiency with. At the end of a short or long rest, you may perform on an instrument you are proficient with to grant Heroic Inspiration to listening allies. You can choose as many allies as your proficiency bonus.",
+      "source": "standard option, own words"
+    },
+    {
+      "id": "tavern-brawler",
+      "name": "Tavern Brawler",
+      "desc": "Your damaging Unarmed Strikes can use 1d4 plus your Strength modifier as bludgeoning damage. You may reroll any unarmed damage die showing 1 once, keeping its replacement result. You are proficient with improvised weapons. Once on your turn, an Unarmed Strike that hits during your Attack action can also push its target 5 feet away while dealing damage.",
+      "source": "standard option, own words"
+    },
+    {
+      "id": "tough",
+      "name": "Tough",
+      "desc": "Taking this feat adds 2 hit points per current character level to your hit point maximum. Each later character level adds another 2 hit points to that maximum.",
+      "source": "standard option, own words"
+    }
+  ],
+  "traits": []
+}

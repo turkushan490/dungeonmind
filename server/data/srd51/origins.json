@@ -1,0 +1,364 @@
+{
+  "backgrounds": [
+    {
+      "id": "charlatan",
+      "name": "Charlatan",
+      "skills": ["deception", "sleight-of-hand"],
+      "tools": ["Disguise kit", "Forgery kit"],
+      "feature": "False Identity: You have an alternate persona backed by papers, contacts, and disguises. You can counterfeit documents or handwriting after studying a suitable example.",
+      "equipment": ["Clothes, fine", "Disguise Kit", "Con props of your choice", "Pouch", "15 gp"],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "criminal",
+      "name": "Criminal",
+      "skills": ["deception", "stealth"],
+      "tools": ["One type of gaming set", "Thieves' tools"],
+      "feature": "Criminal Contact: A dependable underworld contact connects you with other criminals. You know intermediaries who can carry messages between you and that contact over long distances.",
+      "equipment": ["Crowbar", "Clothes, common", "Dark hood", "Pouch", "15 gp"],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "entertainer",
+      "name": "Entertainer",
+      "skills": ["acrobatics", "performance"],
+      "tools": ["Disguise kit", "One type of musical instrument"],
+      "feature": "By Popular Demand: You can find a venue that provides meals and lodging at a modest or comfortable standard in exchange for nightly performances. People who recognize your act in a settlement generally respond favorably to you.",
+      "equipment": ["One musical instrument of your choice", "Gift from an admirer", "Clothes, costume", "Pouch", "15 gp"],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "folk-hero",
+      "name": "Folk Hero",
+      "skills": ["animal-handling", "survival"],
+      "tools": ["One type of artisan's tools", "Vehicles (land)"],
+      "feature": "Rustic Hospitality: Commoners will offer shelter, a place to recover, and help evading pursuers unless you have endangered them. Their help stops short of putting their own lives at risk.",
+      "equipment": ["One set of artisan's tools of your choice", "Shovel", "Pot, iron", "Clothes, common", "Pouch", "10 gp"],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "guild-artisan",
+      "name": "Guild Artisan",
+      "skills": ["insight", "persuasion"],
+      "tools": ["One type of artisan's tools"],
+      "languages": 1,
+      "feature": "Guild Membership: Your guild can supply food, lodging, funeral costs, professional contacts, and support against defensible criminal accusations; political introductions may require a contribution. Membership costs 5 gp each month, and overdue dues must be paid before benefits resume.",
+      "equipment": ["One set of artisan's tools of your choice", "Guild introduction letter", "Clothes, traveler's", "Pouch", "15 gp"],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "hermit",
+      "name": "Hermit",
+      "skills": ["medicine", "religion"],
+      "tools": ["Herbalism kit"],
+      "languages": 1,
+      "feature": "Discovery: You possess an exceptional discovery from your time in isolation. Decide with the DM what you learned and how it affects the campaign.",
+      "equipment": ["Case, map or scroll", "Study or prayer notes", "Blanket", "Clothes, common", "Herbalism Kit", "5 gp"],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "noble",
+      "name": "Noble",
+      "skills": ["history", "persuasion"],
+      "tools": ["One type of gaming set"],
+      "languages": 1,
+      "feature": "Position of Privilege: Your title gains you acceptance in high society, deference from commoners, and recognition as a peer by other nobles. You can obtain a meeting with a local noble when needed.",
+      "equipment": ["Clothes, fine", "Signet ring", "Pedigree scroll", "Pouch", "25 gp"],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "outlander",
+      "name": "Outlander",
+      "skills": ["athletics", "survival"],
+      "tools": ["One type of musical instrument"],
+      "languages": 1,
+      "feature": "Wanderer: You remember maps and the broad layout of places you have seen. Where natural supplies are available, you can gather enough food and fresh water each day for yourself and five others.",
+      "equipment": ["Quarterstaff", "Hunting trap", "Trophy from a hunted animal", "Clothes, traveler's", "Pouch", "10 gp"],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "sage",
+      "name": "Sage",
+      "skills": ["arcana", "history"],
+      "tools": [],
+      "languages": 2,
+      "feature": "Researcher: When a fact escapes you, you often know a person or collection that could supply it. The DM decides whether that source is reachable or the information can be found at all.",
+      "equipment": ["Ink (1 ounce bottle)", "Ink pen", "Small knife", "Letter from a colleague", "Clothes, common", "Pouch", "10 gp"],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "sailor",
+      "name": "Sailor",
+      "skills": ["athletics", "perception"],
+      "tools": ["Navigator's tools", "Vehicles (water)"],
+      "feature": "Ship's Passage: Friendly sailing contacts can arrange free sea travel for you and your companions in return for helping the crew. The ship's route and departure may differ from your plans, and the DM sets the journey's duration.",
+      "equipment": ["Club", "Rope, silk (50 feet)", "Lucky charm or trinket", "Clothes, common", "Pouch", "10 gp"],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "soldier",
+      "name": "Soldier",
+      "skills": ["athletics", "intimidation"],
+      "tools": ["One type of gaming set", "Vehicles (land)"],
+      "feature": "Military Rank: Members of your former military organization recognize your rank, and lower-ranking loyal soldiers defer to you. Where that rank is honored, you can influence soldiers, borrow basic supplies or horses, and usually enter friendly military sites.",
+      "equipment": ["Rank insignia", "Trophy from a defeated enemy", "Dice Set or Playing Card Set", "Clothes, common", "Pouch", "10 gp"],
+      "source": "standard option, own words"
+    },
+    {
+      "id": "urchin",
+      "name": "Urchin",
+      "skills": ["sleight-of-hand", "stealth"],
+      "tools": ["Disguise kit", "Thieves' tools"],
+      "feature": "City Secrets: You can navigate overlooked shortcuts through a city. Outside combat, you and companions you guide can travel between city locations in half the usual time.",
+      "equipment": ["Small knife", "Map of your home city", "Pet mouse", "Keepsake of your parents", "Clothes, common", "Pouch", "10 gp"],
+      "source": "standard option, own words"
+    }
+  ],
+  "subspecies": {
+    "dwarf": [
+      {
+        "id": "mountain-dwarf",
+        "name": "Mountain Dwarf",
+        "abilityBonuses": {
+          "str": 2
+        },
+        "traits": [
+          "Dwarven Armor Training"
+        ],
+        "source": "standard option, own words"
+      }
+    ],
+    "elf": [
+      {
+        "id": "wood-elf",
+        "name": "Wood Elf",
+        "abilityBonuses": {
+          "wis": 1
+        },
+        "traits": [
+          "Elf Weapon Training",
+          "Fleet of Foot",
+          "Mask of the Wild"
+        ],
+        "source": "standard option, own words",
+        "speed": 35
+      },
+      {
+        "id": "dark-elf",
+        "name": "Dark Elf (Drow)",
+        "abilityBonuses": {
+          "cha": 1
+        },
+        "traits": [
+          "Superior Darkvision",
+          "Sunlight Sensitivity",
+          "Drow Magic",
+          "Drow Weapon Training"
+        ],
+        "source": "standard option, own words"
+      }
+    ],
+    "halfling": [
+      {
+        "id": "stout-halfling",
+        "name": "Stout Halfling",
+        "abilityBonuses": {
+          "con": 1
+        },
+        "traits": [
+          "Stout Resilience"
+        ],
+        "source": "standard option, own words"
+      }
+    ],
+    "gnome": [
+      {
+        "id": "forest-gnome",
+        "name": "Forest Gnome",
+        "abilityBonuses": {
+          "dex": 1
+        },
+        "traits": [
+          "Natural Illusionist",
+          "Speak with Small Beasts"
+        ],
+        "source": "standard option, own words"
+      }
+    ],
+    "dragonborn": [
+      {
+        "id": "draconic-ancestry-black",
+        "name": "Draconic Ancestry: Black",
+        "abilityBonuses": {},
+        "traits": [
+          "Breath Weapon: Acid (5 by 30 ft. line, DEX save)",
+          "Damage Resistance: Acid"
+        ],
+        "source": "SRD 5.1"
+      },
+      {
+        "id": "draconic-ancestry-blue",
+        "name": "Draconic Ancestry: Blue",
+        "abilityBonuses": {},
+        "traits": [
+          "Breath Weapon: Lightning (5 by 30 ft. line, DEX save)",
+          "Damage Resistance: Lightning"
+        ],
+        "source": "SRD 5.1"
+      },
+      {
+        "id": "draconic-ancestry-brass",
+        "name": "Draconic Ancestry: Brass",
+        "abilityBonuses": {},
+        "traits": [
+          "Breath Weapon: Fire (5 by 30 ft. line, DEX save)",
+          "Damage Resistance: Fire"
+        ],
+        "source": "SRD 5.1"
+      },
+      {
+        "id": "draconic-ancestry-bronze",
+        "name": "Draconic Ancestry: Bronze",
+        "abilityBonuses": {},
+        "traits": [
+          "Breath Weapon: Lightning (5 by 30 ft. line, DEX save)",
+          "Damage Resistance: Lightning"
+        ],
+        "source": "SRD 5.1"
+      },
+      {
+        "id": "draconic-ancestry-copper",
+        "name": "Draconic Ancestry: Copper",
+        "abilityBonuses": {},
+        "traits": [
+          "Breath Weapon: Acid (5 by 30 ft. line, DEX save)",
+          "Damage Resistance: Acid"
+        ],
+        "source": "SRD 5.1"
+      },
+      {
+        "id": "draconic-ancestry-gold",
+        "name": "Draconic Ancestry: Gold",
+        "abilityBonuses": {},
+        "traits": [
+          "Breath Weapon: Fire (15 ft. cone, DEX save)",
+          "Damage Resistance: Fire"
+        ],
+        "source": "SRD 5.1"
+      },
+      {
+        "id": "draconic-ancestry-green",
+        "name": "Draconic Ancestry: Green",
+        "abilityBonuses": {},
+        "traits": [
+          "Breath Weapon: Poison (15 ft. cone, CON save)",
+          "Damage Resistance: Poison"
+        ],
+        "source": "SRD 5.1"
+      },
+      {
+        "id": "draconic-ancestry-red",
+        "name": "Draconic Ancestry: Red",
+        "abilityBonuses": {},
+        "traits": [
+          "Breath Weapon: Fire (15 ft. cone, DEX save)",
+          "Damage Resistance: Fire"
+        ],
+        "source": "SRD 5.1"
+      },
+      {
+        "id": "draconic-ancestry-silver",
+        "name": "Draconic Ancestry: Silver",
+        "abilityBonuses": {},
+        "traits": [
+          "Breath Weapon: Cold (15 ft. cone, CON save)",
+          "Damage Resistance: Cold"
+        ],
+        "source": "SRD 5.1"
+      },
+      {
+        "id": "draconic-ancestry-white",
+        "name": "Draconic Ancestry: White",
+        "abilityBonuses": {},
+        "traits": [
+          "Breath Weapon: Cold (15 ft. cone, CON save)",
+          "Damage Resistance: Cold"
+        ],
+        "source": "SRD 5.1"
+      }
+    ]
+  },
+  "feats": [],
+  "traits": [
+    {
+      "id": "dwarven-armor-training",
+      "name": "Dwarven Armor Training",
+      "desc": "Armor proficiencies: light and medium.",
+      "owner": "dwarf",
+      "source": "standard option, own words"
+    },
+    {
+      "id": "fleet-of-foot",
+      "name": "Fleet of Foot",
+      "desc": "Walking speed: 35 feet.",
+      "owner": "elf",
+      "source": "standard option, own words"
+    },
+    {
+      "id": "mask-of-the-wild",
+      "name": "Mask of the Wild",
+      "desc": "Natural cover that only lightly obscures you is enough to attempt a Stealth check to hide; success follows the normal hiding rules.",
+      "owner": "elf",
+      "source": "standard option, own words"
+    },
+    {
+      "id": "superior-darkvision",
+      "name": "Superior Darkvision",
+      "desc": "Darkvision range: 120 feet.",
+      "owner": "elf",
+      "source": "standard option, own words"
+    },
+    {
+      "id": "sunlight-sensitivity",
+      "name": "Sunlight Sensitivity",
+      "desc": "Direct sunlight imposes disadvantage on your attacks and visual Perception checks if it illuminates either you or the relevant creature or object.",
+      "owner": "elf",
+      "source": "standard option, own words"
+    },
+    {
+      "id": "drow-magic",
+      "name": "Drow Magic",
+      "desc": "Innate magic (CHA): dancing lights; from level 3, cast faerie fire once per long rest, and from level 5, cast darkness once per long rest.",
+      "owner": "elf",
+      "source": "standard option, own words"
+    },
+    {
+      "id": "drow-weapon-training",
+      "name": "Drow Weapon Training",
+      "desc": "Weapon proficiencies: rapier, shortsword, hand crossbow.",
+      "owner": "elf",
+      "source": "standard option, own words"
+    },
+    {
+      "id": "stout-resilience",
+      "name": "Stout Resilience",
+      "desc": "Poison defense: saves against poison have advantage, and poison damage is halved by resistance.",
+      "owner": "halfling",
+      "source": "standard option, own words"
+    },
+    {
+      "id": "natural-illusionist",
+      "name": "Natural Illusionist",
+      "desc": "Innate cantrip: minor illusion, cast with INT.",
+      "owner": "gnome",
+      "source": "standard option, own words"
+    },
+    {
+      "id": "speak-with-small-beasts",
+      "name": "Speak with Small Beasts",
+      "desc": "Exchange basic messages with beasts no larger than Small, using gestures and noises.",
+      "owner": "gnome",
+      "source": "standard option, own words"
+    }
+  ]
+}

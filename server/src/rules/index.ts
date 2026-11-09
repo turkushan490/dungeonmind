@@ -34,6 +34,26 @@ function loadBase(ruleset: Ruleset): RulesData {
       const byId = JSON.parse(readFileSync(features, 'utf8')) as Record<string, FeatureEffect>;
       for (const f of d.features) if (byId[f.id]) f.effect = byId[f.id];
     }
+    const origins = join(config.rulesDir, ruleset, 'origins.json');
+    if (existsSync(origins)) {
+      const extra = JSON.parse(readFileSync(origins, 'utf8')) as Pick<RulesData, 'backgrounds' | 'feats' | 'traits'> & { subspecies: Record<string, RulesData['species'][number]['subspecies']> };
+      const append = <T extends { id: string }>(target: T[], entries: T[], kind: string) => {
+        const ids = new Set(target.map((entry) => entry.id));
+        for (const entry of entries) {
+          if (ids.has(entry.id)) throw new Error(`Duplicate ${kind} id "${entry.id}" in ${ruleset} origins`);
+          ids.add(entry.id);
+          target.push(entry);
+        }
+      };
+      append(d.backgrounds, extra.backgrounds, 'background');
+      append(d.feats, extra.feats, 'feat');
+      append(d.traits, extra.traits, 'trait');
+      for (const [id, entries] of Object.entries(extra.subspecies)) {
+        const species = d.species.find((entry) => entry.id === id);
+        if (!species) throw new Error(`Unknown species id "${id}" in ${ruleset} origins`);
+        append(species.subspecies, entries, 'subspecies');
+      }
+    }
     base.set(ruleset, d);
   }
   return d;
@@ -131,9 +151,18 @@ export function memoryEntries(ruleset: Ruleset): { kind: string; id: string; nam
       `Hit die d${c.hitDie}. Saving throws: ${c.saves.join(', ').toUpperCase()}. Skills: choose ${c.skillChoices.choose} from ${c.skillChoices.from.join(', ')}. Proficiencies: ${c.proficiencies.join(', ')}.${c.spellAbility ? ` Spellcasting ability: ${c.spellAbility.toUpperCase()}.` : ''} Subclasses: ${c.subclasses.map((s) => s.name).join(', ')}.\n${c.levels.map((l) => `Level ${l.level}: ${l.features.join(', ') || '-'}`).join('\n')}`,
     );
   for (const f of d.features) add('Feature', f.id, f.name, `${f.owner ? `${f.owner}${f.level ? ` level ${f.level}` : ''}. ` : ''}${f.desc}`);
-  for (const s of d.species) add('Species', s.id, s.name, `Speed ${s.speed}, size ${s.size}. Traits: ${s.traits.join(', ')}.${s.subspecies.length ? ` Subspecies: ${s.subspecies.map((x) => x.name).join(', ')}.` : ''}`);
+  for (const s of d.species) {
+    add('Species', s.id, s.name, `Speed ${s.speed}, size ${s.size}. Traits: ${s.traits.join(', ')}.${s.subspecies.length ? ` Subspecies: ${s.subspecies.map((x) => x.name).join(', ')}.` : ''}`);
+    for (const sub of s.subspecies)
+      add(
+        'Subspecies',
+        sub.id,
+        sub.name,
+        `Parent species: ${s.name}. Additional ability bonuses: ${Object.entries(sub.abilityBonuses).map(([a, v]) => `${a.toUpperCase()} +${v}`).join(', ') || 'none'}. Speed ${sub.speed ?? s.speed} feet. Traits: ${sub.traits.join(', ') || 'none'}.`,
+      );
+  }
   for (const t of d.traits) add('Trait', t.id, t.name, t.desc);
-  for (const b of d.backgrounds) add('Background', b.id, b.name, `Skills: ${b.skills.join(', ')}.${b.abilityOptions ? ` Ability scores: ${b.abilityOptions.join(', ')}.` : ''}${b.feat ? ` Feat: ${b.feat}.` : ''}${b.feature ? ` ${b.feature}` : ''}`);
+  for (const b of d.backgrounds) add('Background', b.id, b.name, `Skills: ${b.skills.join(', ')}.${b.tools?.length ? ` Tools: ${b.tools.join(', ')}.` : ''}${b.languages ? ` Languages: ${b.languages}.` : ''}${b.abilityOptions ? ` Ability scores: ${b.abilityOptions.join(', ')}.` : ''}${b.feat ? ` Feat: ${b.feat}.` : ''}${b.feature ? ` ${b.feature}` : ''}`);
   for (const f of d.feats) add('Feat', f.id, f.name, f.desc);
   for (const i of d.items)
     add(

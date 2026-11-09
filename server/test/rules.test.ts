@@ -28,7 +28,10 @@ describe('SRD rules data', () => {
     const a = (await get('/api/rules/srd51/builder')).json();
     expect(a.species.find((s: any) => s.id === 'dwarf').abilityBonuses).toEqual({ con: 2 });
     const b = (await get('/api/rules/srd52/builder')).json();
-    expect(b.backgrounds.map((x: any) => x.id)).toEqual(['acolyte', 'criminal', 'sage', 'soldier']);
+    expect(b.backgrounds.map((x: any) => x.id)).toEqual([
+      'acolyte', 'criminal', 'sage', 'soldier',
+      'artisan', 'charlatan', 'entertainer', 'farmer', 'guard', 'guide', 'hermit', 'merchant', 'noble', 'sailor', 'scribe', 'wayfarer',
+    ]);
     expect(b.backgrounds[0].abilityOptions).toEqual(['int', 'wis', 'cha']);
   });
 

@@ -131,7 +131,7 @@ export function Builder({ initial, characterId, lockRuleset, minLevel, maxLevel,
             </select>
             {sp && sp.subspecies.length > 0 && (
               <select className="input" value={b.subspecies ?? ''} onChange={(e) => set({ subspecies: e.target.value || undefined })}>
-                <option value="">– {b.ruleset === 'srd51' ? 'subrace' : 'lineage / ancestry'} –</option>
+                <option value="">– {b.ruleset === 'srd51' ? 'no subrace (optional)' : 'lineage / ancestry'} –</option>
                 {sp.subspecies.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -140,9 +140,12 @@ export function Builder({ initial, characterId, lockRuleset, minLevel, maxLevel,
               </select>
             )}
           </div>
+          {sp && sp.subspecies.length > 0 && !b.subspecies && b.ruleset === 'srd51' && (
+            <p className="text-xs text-slate-400">Without a subrace, {sp.name} gets only the base species traits.</p>
+          )}
           {sp && (
             <p className="text-xs text-slate-400">
-              Speed {metres(sp.speed)} · {sp.size} · {sp.traits.join(', ')}
+              Speed {metres(sp.subspecies.find((s) => s.id === b.subspecies)?.speed ?? sp.speed)} · {sp.size} · {sp.traits.join(', ')}
               {Object.keys(sp.abilityBonuses).length > 0 && ` · ${Object.entries(sp.abilityBonuses).map(([a, v]) => `${a.toUpperCase()} +${v}`).join(', ')}`}
             </p>
           )}
@@ -383,7 +386,11 @@ export function Builder({ initial, characterId, lockRuleset, minLevel, maxLevel,
           <div className="grid gap-3 sm:grid-cols-2">
             <label>
               <span className="label">Alignment</span>
-              <input className="input" value={b.alignment ?? ''} onChange={(e) => set({ alignment: e.target.value })} />
+              <select className="input" value={['Lawful good', 'Neutral good', 'Chaotic good', 'Lawful neutral', 'Neutral', 'Chaotic neutral', 'Lawful evil', 'Neutral evil', 'Chaotic evil', 'Unaligned'].find((a) => a.toLowerCase() === b.alignment?.toLowerCase()) ?? b.alignment ?? ''} onChange={(e) => set({ alignment: e.target.value || undefined })}>
+                {b.alignment && !['Lawful good', 'Neutral good', 'Chaotic good', 'Lawful neutral', 'Neutral', 'Chaotic neutral', 'Lawful evil', 'Neutral evil', 'Chaotic evil', 'Unaligned'].some((a) => a.toLowerCase() === b.alignment?.toLowerCase()) && <option value={b.alignment}>{b.alignment}</option>}
+                <option value="">None</option>
+                {['Lawful good', 'Neutral good', 'Chaotic good', 'Lawful neutral', 'Neutral', 'Chaotic neutral', 'Lawful evil', 'Neutral evil', 'Chaotic evil', 'Unaligned'].map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
             </label>
             <label>
               <span className="label">Appearance (also used for portraits)</span>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { RULESET_NAMES, classLine, type Character, type CharacterBuild, type ClassLevels, type Derived, type Ruleset } from '@dungeonmind/shared';
 import { api } from '../api';
+import { toast } from '../notify';
 import { Busy } from '../components/Busy';
 import { PortraitPicker } from '../components/PortraitPicker';
 import { Sheet } from '../components/Sheet';
@@ -204,18 +205,33 @@ export function CharacterView({ id, edit }: { id: string; edit?: boolean }) {
   );
 }
 
-function StoryFields({ c, onSaved }: { c: Character; onSaved: () => void }) {
-  const [f, setF] = useState({ appearance: c.appearance ?? '', personality: c.personality ?? '', backstory: c.backstory ?? '', notes: c.notes ?? '' });
+const storyOf = (c: Character) => ({ appearance: c.appearance ?? '', personality: c.personality ?? '', backstory: c.backstory ?? '', notes: c.notes ?? '' });
+
+function StoryFields({ c, onSaved }: { c: Character; onSaved: () => Promise<unknown> }) {
+  const [f, setF] = useState(() => storyOf(c));
+  const [saved, setSaved] = useState(() => storyOf(c));
+  const [saving, setSaving] = useState(false);
+  const unchanged = (['appearance', 'personality', 'backstory', 'notes'] as const).every((k) => f[k] === saved[k]);
   return (
     <section className="card space-y-2">
       <h2 className="rune-title">Story</h2>
       {(['appearance', 'personality', 'backstory', 'notes'] as const).map((k) => (
         <label key={k} className="block">
           <span className="label">{k}</span>
-          <textarea className="input readable h-20" value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} />
+          <textarea className="input readable h-20" maxLength={8000} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} />
         </label>
       ))}
-      <button className="btn" onClick={() => api(`/api/characters/${c.id}`, { method: 'PATCH', body: f }).then(onSaved)}>
+      <button className="btn" disabled={saving || unchanged} onClick={async () => {
+        setSaving(true);
+        try {
+          // The server's copy is the clean baseline, so the button stays disabled even if the reload is slow or fails.
+          const now = storyOf(await api<Character>(`/api/characters/${c.id}`, { method: 'PATCH', body: f }));
+          setF(now);
+          setSaved(now);
+          toast('Story saved.', 'info');
+          await onSaved();
+        } catch { /* api displays the error */ } finally { setSaving(false); }
+      }}>
         Save story
       </button>
     </section>
