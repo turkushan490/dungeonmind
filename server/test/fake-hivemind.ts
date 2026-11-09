@@ -32,6 +32,8 @@ export class FakeHiveMind {
   canvases = new Map<string, any>();
   memory = new Map<string, { text: string; tags?: string[] }[]>();
   calls: FakeCall[] = [];
+  /** Run ids DungeonMind asked to cancel. */
+  cancelled: string[] = [];
   files = new Map<string, Buffer>();
   onRun: (call: FakeCall) => FakeRun | Promise<FakeRun> = () => ({ outputs: {} });
   // M9: datasets, training jobs, the training window and workflow schedules.
@@ -134,7 +136,10 @@ export class FakeHiveMind {
       res.write('event: end\ndata: {}\n\n');
       return res.end();
     }
-    if ((m = p.match(/^\/api\/runs\/([^/]+)\/cancel$/))) return this.send(res, 200, { ok: true });
+    if ((m = p.match(/^\/api\/runs\/([^/]+)\/cancel$/))) {
+      this.cancelled.push(m[1]);
+      return this.send(res, 200, { ok: true });
+    }
     if ((m = p.match(/^\/api\/runs\/([^/]+)$/))) {
       const run = this.runs.get(m[1]);
       if (!run) return this.send(res, 404, { error: 'Run not found' });

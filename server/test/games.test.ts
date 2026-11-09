@@ -95,6 +95,79 @@ describe('adventure setup', () => {
     hm.onRun = before;
   }, 60_000);
 
+  describe('cancel', () => {
+    const settingsOf = async () => (await as(host, 'GET', `/api/games/${gameId}`)).json().settings;
+    const until = async (ok: () => boolean) => {
+      for (let i = 0; i < 200 && !ok(); i++) await new Promise((r) => setTimeout(r, 10));
+    };
+    const late = (title: string) => () => ({ delayMs: 300, outputs: { pitch: JSON.stringify({ pitches: [{ title, hook: 'Too late.' }], title, fields: [{ id: 'x', label: 'X', type: 'text' }] }) } });
+
+    it('stops the pitches: the run is cancelled on HiveMind, not retried, and its late result is not saved', async () => {
+      const before = await settingsOf();
+      const calls = hm.callsOf('dnd-setup').length;
+      const stops = hm.cancelled.length;
+      hm.onRun = late('Never Seen');
+      const start = await as(host, 'POST', `/api/games/${gameId}/pitches`, { wishes: 'something else' });
+      const { jobId } = start.json();
+      await until(() => hm.callsOf('dnd-setup').length > calls);
+      expect((await as(ana, 'DELETE', `/api/jobs/${jobId}`)).json()).toEqual({ cancelled: false });
+      expect((await as(host, 'DELETE', `/api/jobs/${jobId}`)).json()).toEqual({ cancelled: true });
+      expect((await as(host, 'GET', `/api/jobs/${jobId}`)).json().status).toBe('cancelled');
+      await until(() => hm.cancelled.length > stops);
+      expect(hm.cancelled.length).toBe(stops + 1);
+      // Well past the moment HiveMind answers.
+      await new Promise((r) => setTimeout(r, 600));
+      expect(hm.callsOf('dnd-setup').length).toBe(calls + 1);
+      expect((await as(host, 'GET', `/api/jobs/${jobId}`)).json().status).toBe('cancelled');
+      const after = await settingsOf();
+      expect(after.pitches).toEqual(before.pitches);
+      expect(after.wishes).toEqual(before.wishes);
+      expect(after.pitch).toEqual(before.pitch);
+    });
+
+    it('stops the setup questions: settings.pitch and the form stay as they were', async () => {
+      const before = await settingsOf();
+      expect(before.pitch.title).toBe('Drowned Bells');
+      const calls = hm.callsOf('dnd-setup').length;
+      hm.onRun = late('Ash Crown');
+      const start = await as(host, 'POST', `/api/games/${gameId}/form`, { pitch: { title: 'Ash Crown', hook: 'A king who will not stay dead.' } });
+      await until(() => hm.callsOf('dnd-setup').length > calls);
+      expect((await as(host, 'DELETE', `/api/jobs/${start.json().jobId}`)).json()).toEqual({ cancelled: true });
+      await new Promise((r) => setTimeout(r, 600));
+      const after = await settingsOf();
+      expect(after.pitch).toEqual(before.pitch);
+      expect(after.form).toEqual(before.form);
+      expect(after.formValues).toEqual(before.formValues);
+      expect((await as(host, 'GET', `/api/games/${gameId}`)).json().name).toBe('The Hag of Hollowmere');
+    });
+
+    it('does not retry a failed attempt once it is cancelled', async () => {
+      const calls = hm.callsOf('dnd-setup').length;
+      hm.onRun = () => ({ error: 'Invalid JSON after repair' });
+      const start = await as(host, 'POST', `/api/games/${gameId}/pitches`, { wishes: 'fog' });
+      await until(() => hm.callsOf('dnd-setup').length > calls);
+      // The first attempt failed; withRetry is in its pause before attempt 2.
+      await new Promise((r) => setTimeout(r, 200));
+      await as(host, 'DELETE', `/api/jobs/${start.json().jobId}`);
+      await new Promise((r) => setTimeout(r, 1800));
+      expect(hm.callsOf('dnd-setup').length).toBe(calls + 1);
+      expect((await as(host, 'GET', `/api/jobs/${start.json().jobId}`)).json().status).toBe('cancelled');
+    }, 10_000);
+
+    it('a cancel that arrives before its request means the request starts nothing', async () => {
+      const calls = hm.callsOf('dnd-setup').length;
+      const id = 'c0ffee00c0ffee00c0ffee00';
+      expect((await as(host, 'DELETE', `/api/jobs/${id}`)).json()).toEqual({ cancelled: true });
+      const start = await app.inject({ method: 'POST', url: `/api/games/${gameId}/pitches`, headers: { cookie: host, 'x-job-id': id }, payload: { wishes: 'fog' } });
+      expect(start.json()).toEqual({ jobId: id });
+      expect((await as(host, 'GET', `/api/jobs/${id}`)).json().status).toBe('cancelled');
+      await new Promise((r) => setTimeout(r, 50));
+      expect(hm.callsOf('dnd-setup').length).toBe(calls);
+      // Another player can't reuse or see that id.
+      expect((await as(ana, 'GET', `/api/jobs/${id}`)).statusCode).toBe(404);
+    });
+  });
+
   it('only the host changes the setup', async () => {
     expect((await as(ana, 'PUT', `/api/games/${gameId}`, { maxPlayers: 1 })).statusCode).toBe(404);
   });

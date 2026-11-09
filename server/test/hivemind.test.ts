@@ -114,6 +114,39 @@ describe('runCanvas', () => {
   });
 });
 
+describe('withRetry with a cancel signal', () => {
+  it('stops in the pause between attempts and never runs the next one', async () => {
+    const { withRetry, HiveMindError, CancelledError } = await import('../src/hivemind.js');
+    const stop = new AbortController();
+    let n = 0;
+    const run = withRetry(
+      async () => {
+        n++;
+        setTimeout(() => stop.abort(), 20);
+        throw new HiveMindError('Invalid JSON after repair');
+      },
+      { baseMs: 5000, signal: stop.signal },
+    );
+    const t = Date.now();
+    await expect(run).rejects.toBeInstanceOf(CancelledError);
+    expect(n).toBe(1);
+    expect(Date.now() - t).toBeLessThan(2000);
+  });
+
+  it('stops the HiveMind run when the signal fires mid-run', async () => {
+    const { runCanvas, withRetry, CancelledError } = await import('../src/hivemind.js');
+    hm.onRun = () => ({ delayMs: 300, outputs: { narration: 'too late' } });
+    const calls = hm.calls.length;
+    const stops = hm.cancelled.length;
+    const stop = new AbortController();
+    setTimeout(() => stop.abort(), 100);
+    await expect(withRetry(() => runCanvas('dnd-narrate', 'go', { signal: stop.signal }), { baseMs: 1, signal: stop.signal })).rejects.toBeInstanceOf(CancelledError);
+    for (let i = 0; i < 100 && hm.cancelled.length === stops; i++) await new Promise((r) => setTimeout(r, 10));
+    expect(hm.cancelled.length).toBe(stops + 1);
+    expect(hm.calls.length).toBe(calls + 1);
+  });
+});
+
 describe('canvas files', () => {
   it('are in sync with scripts/build-canvases.mjs', () => {
     const before = readdirSync('../hivemind').map((f) => readFileSync(`../hivemind/${f}`, 'utf8'));

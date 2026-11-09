@@ -27,6 +27,18 @@ export class HiveMindError extends Error {
   }
 }
 
+/** The person stopped the work (a Cancel button); never retried, never shown as a problem. */
+export class CancelledError extends HiveMindError {
+  constructor() {
+    super('Cancelled', 0, false);
+  }
+}
+
+/** Throws CancelledError once `signal` has fired: call it right before saving anything an AI run produced. */
+export function stopIfCancelled(signal?: AbortSignal) {
+  if (signal?.aborted) throw new CancelledError();
+}
+
 export interface ModelRef {
   providerId: string;
   model: string;
@@ -286,7 +298,13 @@ export async function runCanvas(canvasId: string, question: string, opts: RunOpt
   const vars = Object.fromEntries(Object.entries(opts.vars ?? {}).map(([k, v]) => [k, String(v ?? '')]));
   // HiveMind stops the run by itself when this server goes away, so it can't hold the GPU.
   const alone = (await features()).includes('cancelWhenAlone') ? { cancelWhenAlone: true } : {};
+  stopIfCancelled(opts.signal);
+  // Not aborted halfway: without its runId a started run couldn't be stopped. A cancel during the POST stops it right after.
   const { runId } = await call<{ runId: string }>('/api/runs', { method: 'POST', body: JSON.stringify({ canvasId, question: question || '-', vars, ...(opts.models ? { models: opts.models } : {}), ...alone }) });
+  if (opts.signal?.aborted) {
+    call(`/api/runs/${runId}/cancel`, { method: 'POST' }).catch(() => {});
+    throw new CancelledError();
+  }
 
   const timeout = AbortSignal.timeout(timeoutMs);
   const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
@@ -311,12 +329,14 @@ export async function runCanvas(canvasId: string, question: string, opts: RunOpt
   } catch (err) {
     // Stop the run on HiveMind too, so it doesn't keep the GPU busy.
     call(`/api/runs/${runId}/cancel`, { method: 'POST' }).catch(() => {});
+    if (opts.signal?.aborted) throw new CancelledError();
     if (err instanceof HiveMindError) throw err;
     throw new HiveMindError(timeout.aborted ? `HiveMind run timed out after ${Math.round(timeoutMs / 1000)} s` : `HiveMind run stopped: ${(err as Error).message}`);
   } finally {
     clearTimeout(slow);
     active.delete(runId);
   }
+  stopIfCancelled(opts.signal);
   const run = await call<{ status: string; final?: string; outputs?: RunResult['outputs']; error?: string }>(`/api/runs/${runId}`);
   if (run.status === 'error' || failed) throw new HiveMindError(`HiveMind run failed: ${failed ?? run.error ?? 'unknown error'}`);
   return { runId, outputs: run.outputs ?? {}, final: run.final };
@@ -393,24 +413,42 @@ export const deleteFile = (path: string) => call(`/api/files?path=${encodeURICom
 export const imagePaths = (text: string) => [...text.matchAll(/\]\(hm-file:([^)\s]+)\)/g)].map((m) => decodeURIComponent(m[1]));
 
 // ---- Retry ----
-export async function withRetry<T>(fn: (attempt: number) => Promise<T>, opts: { attempts?: number; baseMs?: number; onRetry?: (attempt: number, err: Error) => void } = {}): Promise<T> {
+/** With `signal`: a cancelled attempt is not retried, and a cancel during the pause stops before the next attempt. */
+export async function withRetry<T>(
+  fn: (attempt: number) => Promise<T>,
+  opts: { attempts?: number; baseMs?: number; onRetry?: (attempt: number, err: Error) => void; signal?: AbortSignal } = {},
+): Promise<T> {
   const attempts = opts.attempts ?? 3;
   let last: Error = new Error('never ran');
   for (let a = 1; a <= attempts; a++) {
+    stopIfCancelled(opts.signal);
     try {
       return await fn(a);
     } catch (err) {
+      if (err instanceof CancelledError || opts.signal?.aborted) throw new CancelledError();
       last = err as Error;
       if (attempts > 1) logProblem('hivemind', last, `Attempt ${a} of ${attempts}`);
       if (err instanceof HiveMindError && !err.retryable) throw err;
       if (a < attempts) {
         opts.onRetry?.(a, last);
-        await new Promise((r) => setTimeout(r, (opts.baseMs ?? 1500) * a));
+        await pause((opts.baseMs ?? 1500) * a, opts.signal);
       }
     }
   }
   throw last;
 }
+
+/** setTimeout that ends early when `signal` fires. */
+const pause = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((done) => {
+    const t = setTimeout(finish, ms);
+    signal?.addEventListener('abort', finish, { once: true });
+    function finish() {
+      clearTimeout(t);
+      signal?.removeEventListener('abort', finish);
+      done();
+    }
+  });
 
 /** Asks HiveMind to download a model into one of its Ollama providers (e.g. the Lab's fine-tuned DM from Hugging Face). */
 export const pullModel = (providerId: string, model: string) =>

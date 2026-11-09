@@ -6,7 +6,7 @@ import { db, tx } from '../db.js';
 import { validateBuild } from '../game/character.js';
 import { armRollTimers } from '../game/engine.js';
 import { broadcast, DEFAULT_SETTINGS, detail, freshState, gameCharacters, loadGame, roleIn, saveGame, summaries, type GameRow } from '../game/store.js';
-import { HiveMindError, outputJson, runCanvas, withRetry } from '../hivemind.js';
+import { HiveMindError, outputJson, runCanvas, stopIfCancelled, withRetry } from '../hivemind.js';
 import { background } from '../jobs.js';
 import { emitToLobby, emitToUser, onGameJoin } from '../realtime.js';
 import { isRuleset, rules } from '../rules/index.js';
@@ -233,10 +233,12 @@ export function gameRoutes(app: FastifyInstance) {
     if (!r) return;
     const { g } = r;
     const wishes = String((req.body as { wishes?: string })?.wishes ?? g.settings.wishes ?? '').slice(0, 4000);
-    return background(req, reply, async () => {
+    // Cancel (DELETE /api/jobs/:id) stops the run; nothing is saved after it.
+    return background(req, reply, async (signal) => {
       const question = wishes || 'Surprise me: a dark fantasy adventure.';
       const vars = { ...setupVars(g), stage: 'pitches', pitch: '' };
-      const out = await withRetry(() => runCanvas('dnd-setup', question, { vars }));
+      const out = await withRetry(() => runCanvas('dnd-setup', question, { vars, signal }), { signal });
+      stopIfCancelled(signal);
       await recordCall(g, 'dnd-setup', question, vars, out);
       const list = outputJson<{ pitches?: Pitch[] }>(out, 'pitch').pitches;
       const pitches = (Array.isArray(list) ? list : [])
@@ -244,6 +246,7 @@ export function gameRoutes(app: FastifyInstance) {
         .slice(0, 6)
         .map((p) => ({ title: String(p.title).slice(0, 200), hook: String(p.hook ?? '').slice(0, 2000), tone: p.tone ? String(p.tone).slice(0, 200) : undefined, themes: Array.isArray(p.themes) ? p.themes.map(String).slice(0, 6) : undefined }));
       if (!pitches.length) throw new HiveMindError('The DM had no pitches; try again', 0, true, out.outputs.pitch?.text);
+      stopIfCancelled(signal);
       g.settings.wishes = wishes;
       g.settings.pitches = pitches;
       saveGame(g);
@@ -257,11 +260,13 @@ export function gameRoutes(app: FastifyInstance) {
     const { g } = r;
     const p = (req.body as { pitch?: Pitch })?.pitch;
     if (!p?.title) return reply.code(400).send({ error: 'Pick or write a pitch' });
+    // Only saved together with the form: a cancelled or failed form leaves settings.pitch as it was.
     g.settings = cleanSettings({ pitch: p }, g.settings);
-    return background(req, reply, async () => {
+    return background(req, reply, async (signal) => {
       const question = g.settings.wishes || p.title;
       const vars = { ...setupVars(g), stage: 'form', pitch: `${g.settings.pitch!.title}: ${g.settings.pitch!.hook}` };
-      const out = await withRetry(() => runCanvas('dnd-setup', question, { vars }));
+      const out = await withRetry(() => runCanvas('dnd-setup', question, { vars, signal }), { signal });
+      stopIfCancelled(signal);
       await recordCall(g, 'dnd-setup', question, vars, out);
       type Form = { title?: string; summary?: string; fields?: unknown };
       const answer = outputJson<Form>(out, 'pitch');
@@ -271,6 +276,7 @@ export function gameRoutes(app: FastifyInstance) {
       g.settings.form = { title: f.title ? String(f.title).slice(0, 120) : undefined, summary: f.summary ? String(f.summary).slice(0, 2000) : undefined, fields };
       g.settings.formValues = Object.fromEntries(g.settings.form.fields.map((x) => [x.id, x.default ?? (x.type === 'multi' ? [] : x.type === 'slider' ? (x.min ?? 0) : '')]));
       if (f.title && g.name === 'Untitled adventure') g.name = String(f.title).slice(0, 80);
+      stopIfCancelled(signal);
       saveGame(g);
       return { form: g.settings.form, formValues: g.settings.formValues, name: g.name };
     });
