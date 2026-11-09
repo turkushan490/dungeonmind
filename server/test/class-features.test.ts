@@ -152,6 +152,24 @@ describe('class features at the table', () => {
     expect(free.reason).toMatch(/Divine Smite needs a spell slot/);
   });
 
+  it('does not apply Divine Smite to a dart, while daggers and javelins stay melee', () => {
+    for (const weapon of ['Dart', 'Dagger', 'Javelin']) {
+      const pc = { ...pcs.paladin, inventory: [{ name: weapon, qty: 1, equipped: true }] };
+      const rolls = R.buildRolls(r.srd51, [pc], [ogre()], {
+        rolls: [
+          { id: 'a', actor: pc.name, kind: 'attack', weapon, target: 'Ogre' },
+          { actor: pc.name, kind: 'damage', weapon, target: 'Ogre', onHit: 'a', features: ['Divine Smite'] },
+        ],
+        resources: [{ pc: pc.name, name: 'Spell slot L1', amount: 1 }],
+      });
+      const damage = rolls[1];
+      expect(damage.label.includes('Divine Smite')).toBe(weapon !== 'Dart');
+      expect(damage.dice.endsWith('+2d8')).toBe(weapon !== 'Dart');
+      const item = r.srd51.items.find((w) => w.name === weapon)!;
+      expect(F.isRanged(r.srd51, item)).toBe(weapon === 'Dart');
+    }
+  });
+
   it('crits on 19 with Improved Critical, weapon attacks only', () => {
     const [a] = R.buildRolls(r.srd51, [pcs.fighter], [ogre()], { rolls: attack('Brakka') });
     expect(a.critOn).toBe(19);

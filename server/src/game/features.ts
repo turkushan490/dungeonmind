@@ -195,6 +195,14 @@ export interface Rider {
   from: string;
 }
 
+// SRD 5.1's imported categories omit melee/ranged. Ammunition identifies its other
+// ranged weapons, but Dart and Net are ranged thrown weapons without that property.
+// Do not use Thrown alone: daggers, javelins, etc. are melee weapons. In 5.2 Net is gear.
+const SRD51_THROWN_RANGED = new Set(['dart', 'net']);
+export const isRanged = (rules: RulesData, w?: RulesItem) => /ranged/i.test(w?.category ?? '')
+  || !!w?.properties?.some((p) => /ammunition/i.test(p))
+  || (rules.ruleset === 'srd51' && !!w && SRD51_THROWN_RANGED.has(w.id));
+
 /**
  * The extra damage a PC's weapon hit gets from features: automatic ones (Rage, Divine Strike), and the ones the
  * adjudicator named (Sneak Attack, Divine Smite). Once-per-turn features remember in `used`; slots come out of `slots`.
@@ -207,7 +215,7 @@ export function damageRiders(
   const riders: Rider[] = [];
   const notes: string[] = [];
   const w = hit.weapon;
-  const ranged = /ranged/i.test(w?.category ?? '');
+  const ranged = isRanged(rules, w);
   const finesse = !!w?.properties?.some((p) => /finesse/i.test(p));
   for (const { feature: f, effect, vars } of activeFeatures(rules, c)) {
     const e = effect.damage;

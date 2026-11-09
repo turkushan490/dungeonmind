@@ -134,6 +134,22 @@ describe('narrator audio', () => {
     expect((await t.as(t.pl, 'GET', '/api/audio/..%2F..%2Fsecret.key')).statusCode).toBe(404);
   });
 
+  it('redacts old narration text and generated audio for non-hosts after hiding is enabled', async () => {
+    const t = await setupGame(app);
+    const { addLog } = await import('../src/game/log.js');
+    const { loadGame, saveGame } = await import('../src/game/store.js');
+    const entry = addLog(t.id, 0, 'narration', 'Guard has AC 13. The ledge is DC 15.');
+    const g = loadGame(t.id)!;
+    g.settings.hideTargets = true;
+    saveGame(g);
+    for (const cookie of [t.pl, t.host]) {
+      const res = await t.as(cookie, 'GET', `/api/games/${t.id}/narration/${entry.id}`);
+      expect(res.statusCode).toBe(200);
+      const text = res.json().parts.map((p: any) => p.text).join(' ');
+      expect(text).toBe(cookie === t.host ? entry.text : 'Guard has AC ?. The ledge is DC ?.');
+    }
+  });
+
   it('reads any selected text aloud', async () => {
     const { register } = await import('./helpers.js');
     const u = await register(app, 'reader');

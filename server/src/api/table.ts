@@ -6,9 +6,10 @@ import { db } from '../db.js';
 import { applyPatches, currentCampaign, parseSections, saveCampaign, SECTIONS, withParty } from '../game/campaign.js';
 import { armRollTimers } from '../game/engine.js';
 import { addLog, readLog } from '../game/log.js';
+import { logFor, textFor } from '../game/hidden.js';
 import { campaignFor, partyJson, recentTurns } from '../game/prompt.js';
 import { think } from '../game/queue.js';
-import { broadcast, gameCharacters, saveGame, saveGameCharacter } from '../game/store.js';
+import { broadcast, gameCharacters, saveGame, saveGameCharacter, stateFor } from '../game/store.js';
 import { activeCharacters, playersOf, redoNarration, resolveLater, retry, startGame, submitAction } from '../game/turn.js';
 import { HiveMindError, outputText, runCanvas, withRetry } from '../hivemind.js';
 import { readImage } from '../images.js';
@@ -153,7 +154,7 @@ export function tableRoutes(app: FastifyInstance) {
     const r = await gameFor(req, reply);
     if (!r) return;
     const { before, limit } = req.query as { before?: string; limit?: string };
-    return readLog(r.g.id, { before: Number(before) || undefined, limit: Number(limit) || 300 });
+    return readLog(r.g.id, { before: Number(before) || undefined, limit: Number(limit) || 300 }).map((e) => logFor(r.g, r.role, e));
   });
 
   // ---- Ask the DM (out of turn, never blocks the turn) ----
@@ -192,7 +193,7 @@ export function tableRoutes(app: FastifyInstance) {
     const md = version
       ? ((db.prepare('SELECT md FROM campaign_versions WHERE game_id = ? AND id = ?').get(r.g.id, Number(version)) as { md: string } | undefined)?.md ?? '')
       : withParty(currentCampaign(r.g.id), gameCharacters(r.g.id), r.g.state.npcs);
-    return { md, versions, sections: SECTIONS };
+    return { md: textFor(r.g, r.role, md), versions, sections: SECTIONS };
   });
 
   app.put('/api/games/:id/campaign', { preHandler: requireUser }, async (req, reply) => {
@@ -215,10 +216,10 @@ export function tableRoutes(app: FastifyInstance) {
   app.get('/api/games/:id/export.md', { preHandler: requireUser }, async (req, reply) => {
     const r = await gameFor(req, reply);
     if (!r) return;
-    const lines = readLog(r.g.id, { limit: 1000000 }).map(logLine);
+    const lines = readLog(r.g.id, { limit: 1000000 }).map((e) => logLine(logFor(r.g, r.role, e)));
     reply.header('content-type', 'text/markdown; charset=utf-8');
     reply.header('content-disposition', `attachment; filename="${fileName(r.g.name)}.md"`);
-    return `${withParty(currentCampaign(r.g.id), gameCharacters(r.g.id), r.g.state.npcs)}\n---\n\n# The story\n${lines.join('\n')}\n`;
+    return `${textFor(r.g, r.role, withParty(currentCampaign(r.g.id), gameCharacters(r.g.id), r.g.state.npcs))}\n---\n\n# The story\n${lines.join('\n')}\n`;
   });
 
   /** The whole game in one zip: game.md with the story and sheets, all its pictures, and game.json with the raw data. */
@@ -236,7 +237,7 @@ export function tableRoutes(app: FastifyInstance) {
       files[`images/${file}`] = data;
       return `images/${file}`;
     };
-    const log = readLog(g.id, { limit: 1000000 });
+    const log = readLog(g.id, { limit: 1000000 }).map((e) => logFor(g, r.role, e));
     const chars = gameCharacters(g.id);
     const lines: string[] = [];
     for (const e of log) {
@@ -248,9 +249,9 @@ export function tableRoutes(app: FastifyInstance) {
       const portrait = await picture(c.portrait);
       sheets.push(`## ${c.name}\n\n${portrait ? `![${c.name}](${portrait})\n\n` : ''}\`\`\`json\n${JSON.stringify(c, null, 2)}\n\`\`\`\n`);
     }
-    const md = `${withParty(currentCampaign(g.id), chars, g.state.npcs)}\n---\n\n# The story\n${lines.join('\n')}\n\n---\n\n# Characters\n\n${sheets.join('\n')}`;
+    const md = `${textFor(g, r.role, withParty(currentCampaign(g.id), chars, g.state.npcs))}\n---\n\n# The story\n${lines.join('\n')}\n\n---\n\n# Characters\n\n${sheets.join('\n')}`;
     files['game.md'] = Buffer.from(md);
-    files['game.json'] = Buffer.from(JSON.stringify({ name: g.name, ruleset: g.ruleset, status: g.status, settings: g.settings, state: g.state, characters: chars, log }, null, 2));
+    files['game.json'] = Buffer.from(JSON.stringify({ name: g.name, ruleset: g.ruleset, status: g.status, settings: g.settings, state: stateFor(g, r.role), characters: chars, log }, null, 2));
     reply.header('content-type', 'application/zip');
     reply.header('content-disposition', `attachment; filename="${fileName(g.name)}.zip"`);
     return reply.send(Buffer.from(zipSync(files)));

@@ -82,6 +82,17 @@ export function attachRealtime(app: FastifyInstance) {
 }
 
 export const emitToGame = (gameId: string, event: string, payload: unknown) => io?.to(`game:${gameId}`).emit(event, payload);
+export function emitToGameByUser(gameId: string, event: string, payloadFor: (user: User) => unknown) {
+  const ids = io?.sockets.adapter.rooms.get(`game:${gameId}`);
+  if (!ids || !io) return;
+  for (const id of ids) {
+    const socket = io.sockets.sockets.get(id);
+    if (socket) {
+      const payload = payloadFor(socket.data.user as User);
+      if (payload !== undefined) socket.emit(event, payload);
+    }
+  }
+}
 export const emitToUser = (userId: string, event: string, payload: unknown) => io?.to(`user:${userId}`).emit(event, payload);
 export const emitToAdmins = (event: string, payload: unknown) => io?.to('admins').emit(event, payload);
 export const emitToLobby = (event: string, payload: unknown) => io?.to('lobby').emit(event, payload);

@@ -5,7 +5,8 @@ import { logProblem } from '../problems.js';
 import { simContext } from '../trainer/context.js';
 import { labelTurn, recordCall } from '../trainer/records.js';
 import { health, HiveMindError, outputJson, outputText, runCanvas, withRetry, type RunResult } from '../hivemind.js';
-import { emitToGame } from '../realtime.js';
+import { emitToGame, emitToGameByUser } from '../realtime.js';
+import { redactTargets } from './hidden.js';
 import { rules } from '../rules/index.js';
 import { applyPatches, currentCampaign, initialCampaign, saveCampaign, withParty, type Patch } from './campaign.js';
 import { addLog, lastLogId } from './log.js';
@@ -97,6 +98,20 @@ function askDm(g: GameRow, canvasId: string, question: string, vars: Record<stri
       withRetry(
         async () => {
           let text = '';
+          // Hide DC/AC: the host gets every token; the others get the redacted text, held back a few characters
+          // so an "AC 13" split over tokens is whole before it is redacted. Read once per run, not per token.
+          const hide = stream && !!(loadGame(g.id) ?? g).settings.hideTargets;
+          const hosts = new Set(hide ? members(g.id).filter((m) => m.role === 'host').map((m) => m.userId) : []);
+          let sent = 0;
+          const sendHidden = (t: string, final: boolean) => {
+            const visible = redactTargets(text);
+            const upTo = final ? visible.length : Math.max(sent, visible.length - 12);
+            const delta = visible.slice(sent, upTo);
+            sent = upTo;
+            emitToGameByUser(g.id, 'game:stream', (user) =>
+              hosts.has(user.id) ? (t ? { gameId: g.id, text: t } : undefined) : delta ? { gameId: g.id, text: delta } : undefined,
+            );
+          };
           const nonsense = (raw: string) => new HiveMindError('The DM wrote nonsense. If this keeps happening, pick a bigger model (not an IQ1 or IQ2 version).', 0, true, raw);
           const stop = new AbortController();
           if (stream || canvasId === 'dnd-adjudicate') writing.set(g.id, stop);
@@ -110,7 +125,8 @@ function askDm(g: GameRow, canvasId: string, question: string, vars: Record<stri
               ? (label, t) => {
                   if (label !== 'narration') return;
                   text += t;
-                  emitToGame(g.id, 'game:stream', { gameId: g.id, text: t, full: text.length < 200 ? text : undefined });
+                  if (hide) sendHidden(t, false);
+                  else emitToGame(g.id, 'game:stream', { gameId: g.id, text: t, full: text.length < 200 ? text : undefined });
                   if (garbled(text)) throw nonsense(text);
                   if (!sim) for (const h of hooks) h.onNarrationText?.(g, text);
                 }
@@ -118,6 +134,7 @@ function askDm(g: GameRow, canvasId: string, question: string, vars: Record<stri
           }).finally(() => writing.get(g.id) === stop && writing.delete(g.id));
           const told = result.outputs.narration?.text;
           if (stream && told && garbled(told)) throw nonsense(told);
+          if (hide) sendHidden('', true);
           return result;
         },
         {

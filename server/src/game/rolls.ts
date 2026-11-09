@@ -4,7 +4,7 @@ import { checkManual, combineAdv, DiceError, diceNeeded, parseDice, roll, rollD2
 import { derive, itemByName } from './character.js';
 import { normalizeCounterName } from './bookkeeper.js';
 import { actionNamed, monsterAttack, monsterCheck, monsterOf, monsterSave, type MonsterAction } from './monsters.js';
-import { critOn, damageRiders, featureAdv, featureHeal } from './features.js';
+import { critOn, damageRiders, featureAdv, featureHeal, isRanged } from './features.js';
 import { cantripTier, knownSpell, spellCount, spellDice, spellMod, spellSaveDc } from './spells.js';
 import { clip, sameName } from './text.js';
 
@@ -49,9 +49,14 @@ const skillOf = (s: string | undefined) => {
   return k in SKILLS ? k : undefined;
 };
 
-/** Conditions that change the actor's own d20 rolls. */
+/** Conditions combined for callers with no other sources of advantage. */
 export function conditionAdv(c: GameCharacter | undefined, kind: string, ability?: Ability, ruleset = 'srd51'): Adv {
-  if (!c) return 'none';
+  return combineAdv(...conditionAdvValues(c, kind, ability, ruleset));
+}
+
+/** Conditions that change the actor's own d20 rolls. */
+function conditionAdvValues(c: GameCharacter | undefined, kind: string, ability?: Ability, ruleset = 'srd51'): Adv[] {
+  if (!c) return [];
   const on = (n: string) => c.conditions.some((x) => x.name === n);
   const src: Adv[] = [];
   if (kind === 'attack') {
@@ -68,7 +73,7 @@ export function conditionAdv(c: GameCharacter | undefined, kind: string, ability
     if (ruleset === 'srd51' && c.exhaustion >= 3) src.push('dis');
     if (on('dodging') && ability === 'dex') src.push('adv');
   }
-  return combineAdv(...src);
+  return src;
 }
 
 /**
@@ -228,12 +233,12 @@ export function buildRolls(rules: RulesData, chars: GameCharacter[], npcs: Npc[]
       let bonus = Number(r.bonus) || 0;
       let what = r.weapon || r.spell || 'attack';
       if (pc && d) {
-        if (r.spell) bonus = d.profBonus + spellMod(rules, pc, findIn(rules.spells, r.spell));
+        if (r.spell) bonus = d.profBonus + spellMod(rules, pc, findIn(rules.spells, r.spell)) - exh2024;
         else {
           const item = (r.weapon && pc.inventory.find((it) => sameName(it.name, r.weapon))) || pc.inventory.find((it) => it.equipped && itemByName(rules, it.name)?.damage);
           const w = item ? itemByName(rules, item.name) : undefined;
           const finesse = w?.properties?.some((p) => /finesse/i.test(p));
-          const ranged = /ranged/i.test(w?.category ?? '');
+          const ranged = isRanged(rules, w);
           const m = finesse ? Math.max(d.mods.str, d.mods.dex) : ranged ? d.mods.dex : d.mods.str;
           bonus = m + d.profBonus - exh2024;
           what = item?.name ?? 'unarmed strike';
@@ -251,7 +256,7 @@ export function buildRolls(rules: RulesData, chars: GameCharacter[], npcs: Npc[]
         label: `${base.actor} attacks${base.target ? ` ${base.target}` : ''} (${what})`,
         bonus,
         targetAc: ac,
-        adv: combineAdv(aiAdv, conditionAdv(pc, 'attack', undefined, rules.ruleset), targetGivesAdv(targetPc) ? 'adv' : 'none', featureAdv(rules, pc, 'attack', undefined, !!r.spell) ? 'adv' : 'none'),
+        adv: combineAdv(aiAdv, ...conditionAdvValues(pc, 'attack', undefined, rules.ruleset), targetGivesAdv(targetPc) ? 'adv' : 'none', featureAdv(rules, pc, 'attack', undefined, !!r.spell) ? 'adv' : 'none'),
       });
       // Improved Critical: weapon attacks only.
       const crit = pc && !r.spell ? critOn(rules, pc) : 20;
@@ -267,7 +272,7 @@ export function buildRolls(rules: RulesData, chars: GameCharacter[], npcs: Npc[]
         label: `${base.actor} ${ab.toUpperCase()} save`,
         bonus: pc && d ? d.saveBonus[ab] : mon ? monsterSave(mon, ab) : Number(r.bonus) || 0,
         dc,
-        adv: combineAdv(aiAdv, conditionAdv(pc, 'save', ab, rules.ruleset), featureAdv(rules, pc, 'save', ab) ? 'adv' : 'none'),
+        adv: combineAdv(aiAdv, ...conditionAdvValues(pc, 'save', ab, rules.ruleset), featureAdv(rules, pc, 'save', ab) ? 'adv' : 'none'),
       });
     } else if (kind === 'check') {
       const ab = ability ?? (skill ? SKILLS[skill] : 'wis');
@@ -275,7 +280,7 @@ export function buildRolls(rules: RulesData, chars: GameCharacter[], npcs: Npc[]
         label: `${base.actor} ${skill ? skill.replace(/-/g, ' ') : ab.toUpperCase()} check`,
         bonus: pc && d ? (skill ? d.skillBonus[skill] : d.mods[ab] - exh2024) : mon ? monsterCheck(mon, ab, skill) : Number(r.bonus) || 0,
         dc: Number(r.dc) || undefined,
-        adv: combineAdv(aiAdv, conditionAdv(pc, 'check', ab, rules.ruleset), featureAdv(rules, pc, 'check', ab) ? 'adv' : 'none'),
+        adv: combineAdv(aiAdv, ...conditionAdvValues(pc, 'check', ab, rules.ruleset), featureAdv(rules, pc, 'check', ab) ? 'adv' : 'none'),
       });
     } else {
       // damage / heal
@@ -286,7 +291,7 @@ export function buildRolls(rules: RulesData, chars: GameCharacter[], npcs: Npc[]
         const item = (r.weapon && pc.inventory.find((it) => sameName(it.name, r.weapon))) || pc.inventory.find((it) => it.equipped && itemByName(rules, it.name)?.damage);
         const w = item ? itemByName(rules, item.name) : undefined;
         const finesse = !!w?.properties?.some((p) => /finesse/i.test(p));
-        const ranged = /ranged/i.test(w?.category ?? '');
+        const ranged = isRanged(rules, w);
         const m = !w ? d.mods.str : finesse ? Math.max(d.mods.str, d.mods.dex) : ranged ? d.mods.dex : d.mods.str;
         if (w?.damage) {
           dice = `${w.damage}${m >= 0 ? '+' : ''}${m}`;

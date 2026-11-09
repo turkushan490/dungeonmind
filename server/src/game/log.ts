@@ -1,6 +1,8 @@
 import type { LogEntry } from '@dungeonmind/shared';
 import { db, json } from '../db.js';
-import { emitToGame } from '../realtime.js';
+import { emitToGame, emitToGameByUser } from '../realtime.js';
+import { logFor } from './hidden.js';
+import { loadGame, roleIn } from './store.js';
 
 const toEntry = (r: Record<string, any>): LogEntry => ({
   id: r.id,
@@ -18,7 +20,12 @@ export function addLog(gameId: string, turn: number, kind: LogEntry['kind'], tex
     .prepare('INSERT INTO game_log (game_id, turn, kind, actor, text, data) VALUES (?, ?, ?, ?, ?, ?) RETURNING *')
     .get(gameId, turn, kind, actor ?? null, text, data ? JSON.stringify(data) : null) as Record<string, any>;
   const e = toEntry(r);
-  emitToGame(gameId, 'game:log', { gameId, entry: e });
+  const g = loadGame(gameId);
+  if (!g?.settings.hideTargets) emitToGame(gameId, 'game:log', { gameId, entry: e });
+  else {
+    const hidden = logFor(g, 'player', e);
+    emitToGameByUser(gameId, 'game:log', (user) => ({ gameId, entry: roleIn(g, user) === 'host' ? e : hidden }));
+  }
   return e;
 }
 

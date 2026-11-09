@@ -1,9 +1,10 @@
 import type { GameCharacter, GameDetail, GameMember, GameSettings, GameState, GameStatus, GameSummary, Ruleset } from '@dungeonmind/shared';
 import type { User } from '../auth/index.js';
 import { db, json } from '../db.js';
-import { emitToGame, isOnline } from '../realtime.js';
+import { emitToGame, emitToGameByUser, isOnline } from '../realtime.js';
 import { rules } from '../rules/index.js';
 import { derive } from './character.js';
+import { hidesTargets, redactTargets } from './hidden.js';
 
 export interface GameRow {
   id: string;
@@ -103,6 +104,24 @@ export function roleIn(g: GameRow, user: User): GameRole | undefined {
 
 export const derivedOf = (g: GameRow, chars: GameCharacter[]) => Object.fromEntries(chars.map((c) => [c.id, derive(rules(g.ruleset), c)]));
 
+export function stateFor(g: GameRow, role: GameRole): GameState {
+  if (!hidesTargets(g, role)) return g.state;
+  return {
+    ...g.state,
+    npcs: g.state.npcs.map(({ ac, ...npc }) => npc),
+    choices: Object.fromEntries(Object.entries(g.state.choices).map(([id, choices]) => [id, choices.map(redactTargets)])),
+    refused: g.state.refused.map((r) => ({ ...r, reason: redactTargets(r.reason) })),
+    ...(g.state.streaming !== undefined ? { streaming: redactTargets(g.state.streaming) } : {}),
+    ...(g.state.error !== undefined ? { error: redactTargets(g.state.error) } : {}),
+    ...(g.state.scenePrompt !== undefined ? { scenePrompt: redactTargets(g.state.scenePrompt) } : {}),
+    rolls: g.state.rolls.map(({ dc, targetAc, result, ...roll }) => {
+      const visible = { ...roll, label: redactTargets(roll.label), ...(roll.reason !== undefined ? { reason: redactTargets(roll.reason) } : {}) };
+      if (!result) return visible;
+      return { ...visible, result: { ...result, text: redactTargets(result.text) } };
+    }),
+  };
+}
+
 export function detail(g: GameRow, role: GameRole): GameDetail {
   const characters = gameCharacters(g.id);
   return {
@@ -115,7 +134,7 @@ export function detail(g: GameRow, role: GameRole): GameDetail {
     settings: g.settings,
     members: members(g.id),
     characters,
-    state: g.state,
+    state: stateFor(g, role),
     derived: derivedOf(g, characters),
     myRole: role,
   };
@@ -124,7 +143,10 @@ export function detail(g: GameRow, role: GameRole): GameDetail {
 /** Everyone at the table (and spectators) gets the new state. */
 export function broadcast(g: GameRow) {
   const characters = gameCharacters(g.id);
-  emitToGame(g.id, 'game:update', { id: g.id, status: g.status, state: g.state, characters, derived: derivedOf(g, characters), members: members(g.id), settings: g.settings, name: g.name, visibility: g.visibility });
+  const payload = { id: g.id, status: g.status, state: g.state, characters, derived: derivedOf(g, characters), members: members(g.id), settings: g.settings, name: g.name, visibility: g.visibility };
+  if (!g.settings.hideTargets) return emitToGame(g.id, 'game:update', payload);
+  const hidden = { ...payload, state: stateFor(g, 'player') };
+  emitToGameByUser(g.id, 'game:update', (user) => roleIn(g, user) === 'host' ? payload : hidden);
 }
 
 export function summaries(where: string, ...args: (string | number)[]): GameSummary[] {

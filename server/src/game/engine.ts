@@ -21,7 +21,7 @@ export function autoResolve(g: GameRow, chars: GameCharacter[]): boolean {
   for (let pass = 0; pass < 40; pass++) {
     const r = g.state.rolls.find((x) => ready(x, g.state.rolls) && (x.auto || chars.find((c) => c.id === x.characterId)?.absent));
     if (!r) break;
-    resolveRoll(r, g.state.rolls, undefined, { hideTargets: g.settings.hideTargets });
+    resolveRoll(r, g.state.rolls);
     logRoll(g, r);
     moved = true;
   }
@@ -47,7 +47,7 @@ export function rollOverdue(now = Date.now()) {
     const late = g.state.rolls.filter((r) => r.deadline && Date.parse(r.deadline) <= now && ready(r, g.state.rolls));
     if (!late.length) continue;
     for (const r of late) {
-      resolveRoll(r, g.state.rolls, undefined, { timedOut: true, hideTargets: g.settings.hideTargets });
+      resolveRoll(r, g.state.rolls, undefined, { timedOut: true });
       logRoll(g, r);
     }
     autoResolve(g, gameCharacters(g.id));
@@ -228,16 +228,15 @@ export function playerRoll(g: GameRow, rollId: string, userId: string, isHost: b
   const chars = gameCharacters(g.id);
   const c = chars.find((x) => x.id === r.characterId);
   if (!c || (c.userId !== userId && !isHost)) return { error: "That's not your roll" };
-  const opts = { hideTargets: g.settings.hideTargets };
   try {
-    resolveRoll(r, g.state.rolls, manual, opts);
+    resolveRoll(r, g.state.rolls, manual);
   } catch (err) {
     return { error: (err as Error).message };
   }
   logRoll(g, r);
   if (withDamage && r.kind === 'attack')
     for (const d of g.state.rolls.filter((x) => x.onHit === r.id && x.characterId === r.characterId && ready(x, g.state.rolls))) {
-      resolveRoll(d, g.state.rolls, undefined, opts);
+      resolveRoll(d, g.state.rolls);
       logRoll(g, d);
     }
   autoResolve(g, chars);
